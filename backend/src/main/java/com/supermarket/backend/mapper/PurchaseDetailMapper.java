@@ -1,4 +1,13 @@
 package com.supermarket.backend.mapper;
 
-public class PurchaseDetailMapper {
+import com.supermarket.backend.entity.PurchaseDetail;
+import org.apache.ibatis.annotations.Mapper;
+import java.util.List;
+
+@Mapper
+public interface PurchaseDetailMapper {
+    List<PurchaseDetail> selectAll();
+    int insert(PurchaseDetail detail);
+    int update(PurchaseDetail detail);
+    int deleteById(Long id);
 }

@@ -1,4 +1,13 @@
 package com.supermarket.backend.mapper;
 
-public class SupplierMapper {
+import com.supermarket.backend.entity.Supplier;
+import org.apache.ibatis.annotations.Mapper;
+import java.util.List;
+
+@Mapper
+public interface SupplierMapper {
+    List<Supplier> selectAll();
+    int insert(Supplier supplier);
+    int update(Supplier supplier);
+    int deleteById(Long id);
 }

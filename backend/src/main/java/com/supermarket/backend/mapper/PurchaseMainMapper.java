@@ -1,4 +1,13 @@
 package com.supermarket.backend.mapper;
 
-public class PurchaseMainMapper {
+import com.supermarket.backend.entity.PurchaseMain;
+import org.apache.ibatis.annotations.Mapper;
+import java.util.List;
+
+@Mapper
+public interface PurchaseMainMapper {
+    List<PurchaseMain> selectAll();
+    int insert(PurchaseMain purchaseMain);
+    int update(PurchaseMain purchaseMain);
+    int deleteById(Long id);
 }

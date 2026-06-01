@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.supermarket.backend.mapper.SupplierMapper">
+
+    <resultMap id="BaseResultMap" type="com.supermarket.backend.entity.Supplier">
+        <id column="id" property="id"/>
+        <result column="supplier_code" property="supplierCode"/>
+        <result column="supplier_name" property="supplierName"/>
+        <result column="short_name" property="shortName"/>
+        <result column="address" property="address"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="contact_person" property="contactPerson"/>
+        <result column="contact_phone" property="contactPhone"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select * from supplier
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into supplier(supplier_code, supplier_name, short_name, address, phone, email, contact_person, contact_phone, remark)
+        values(#{supplierCode}, #{supplierName}, #{shortName}, #{address}, #{phone}, #{email}, #{contactPerson}, #{contactPhone}, #{remark})
+    </insert>
+
+    <update id="update">
+        update supplier
+        set supplier_code = #{supplierCode},
+        supplier_name = #{supplierName},
+        short_name = #{shortName},
+        address = #{address},
+        phone = #{phone},
+        email = #{email},
+        contact_person = #{contactPerson},
+        contact_phone = #{contactPhone},
+        remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from supplier where id = #{id}
+    </delete>
+
+</mapper>

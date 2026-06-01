@@ -1,9 +1,11 @@
 package com.supermarket.backend.controller;
 
+import com.supermarket.backend.common.Result;
 import com.supermarket.backend.entity.SysUser;
 import com.supermarket.backend.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -13,16 +15,16 @@ public class SysUserController {
     private SysUserService sysUserService;
 
     @GetMapping("/list")
-    public List<SysUser> list() {
-        return sysUserService.listAll();
+    public Result<List<SysUser>> list() {
+        return Result.success(sysUserService.listAll());
     }
 
     @PostMapping("/login")
-    public Object login(@RequestParam String username, @RequestParam String password) {
+    public Result<SysUser> login(@RequestParam String username, @RequestParam String password) {
         SysUser user = sysUserService.login(username, password);
         if (user != null) {
-            return user;
+            return Result.success(user);
         }
-        return "登录失败";
+        return Result.error("用户名或密码错误");
     }
 }
