@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.supermarket.backend.mapper.MemberMapper">
+    <select id="selectAll" resultType="com.supermarket.backend.entity.Member">
+        select * from member
+    </select>
+    <select id="selectById" resultType="com.supermarket.backend.entity.Member">
+        select * from member where id = #{id}
+    </select>
+    <select id="selectByMemberNo" resultType="com.supermarket.backend.entity.Member">
+        select * from member where member_no = #{memberNo}
+    </select>
+    <insert id="insert" parameterType="com.supermarket.backend.entity.Member">
+        insert into member(member_no, name, phone, register_time, remark)
+        values(#{memberNo}, #{name}, #{phone}, #{registerTime}, #{remark})
+    </insert>
+    <update id="update" parameterType="com.supermarket.backend.entity.Member">
+        update member
+        <set>
+            <if test="memberNo != null and memberNo != ''">
+                member_no = #{memberNo},
+            </if>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="phone != null and phone != ''">
+                phone = #{phone},
+            </if>
+            <if test="registerTime != null">
+                register_time = #{registerTime},
+            </if>
+            <if test="remark != null">
+                remark = #{remark},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+    <delete id="delete">
+        delete from member where id=#{id}
+    </delete>
+</mapper>

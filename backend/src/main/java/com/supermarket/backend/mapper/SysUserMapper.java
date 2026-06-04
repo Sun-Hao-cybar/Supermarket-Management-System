@@ -8,4 +8,13 @@ import java.util.List;
 public interface SysUserMapper {
     List<SysUser> selectAll();
     SysUser selectByUsername(String username);
+    SysUser selectById(Long id);
+    int insert(SysUser sysUser);
+    int update(SysUser sysUser);
+    int delete(Long id);
+    long countAdmins();
+    long countAdminsByPrefix(String prefix);
+    long countByPassword(String password);
+    long countByPhone(String phone);
+    long countEmployees();
 }

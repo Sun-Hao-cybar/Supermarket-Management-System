@@ -1,0 +1,80 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: url('/web-background.png') no-repeat center center fixed;
+  background-size: cover;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#app {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.el-main {
+  background: rgba(255, 255, 255, 0.95);
+  min-height: 100vh;
+}
+
+.el-aside {
+  background: rgba(47, 64, 80, 0.95) !important;
+}
+
+.el-menu {
+  background: transparent !important;
+}
+
+.el-menu-item {
+  color: #fff !important;
+}
+
+.el-menu-item:hover,
+.el-menu-item.is-active {
+  background: rgba(64, 158, 255, 0.3) !important;
+}
+
+.el-table {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+.el-dialog {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+.el-form-item__label {
+  color: #333 !important;
+}
+
+.el-input__inner {
+  color: #333 !important;
+}
+
+.el-button {
+  color: #333 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #333 !important;
+}
+
+p, span, div {
+  color: #333 !important;
+}
+
+.el-table__cell {
+  color: #333 !important;
+}
+
+.el-tabs__item {
+  color: #333 !important;
+}
+
+.el-radio__label {
+  color: #333 !important;
+}

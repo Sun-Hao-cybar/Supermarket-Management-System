@@ -7,4 +7,34 @@
     <select id="selectByUsername" resultType="com.supermarket.backend.entity.SysUser">
         select * from sys_user where username = #{username}
     </select>
+    <select id="selectById" resultType="com.supermarket.backend.entity.SysUser">
+        select * from sys_user where id = #{id}
+    </select>
+    <insert id="insert" parameterType="com.supermarket.backend.entity.SysUser">
+        insert into sys_user(username, password, real_name, phone, salary, role, remark, create_time)
+        values(#{username}, #{password}, #{realName}, #{phone}, #{salary}, #{role}, #{remark}, #{createTime})
+    </insert>
+    <update id="update" parameterType="com.supermarket.backend.entity.SysUser">
+        update sys_user set username=#{username}, password=#{password}, real_name=#{realName}, 
+               phone=#{phone}, salary=#{salary}, role=#{role}, remark=#{remark}
+        where id=#{id}
+    </update>
+    <delete id="delete">
+        delete from sys_user where id=#{id}
+    </delete>
+    <select id="countAdmins" resultType="long">
+        select count(*) from sys_user where role = 1
+    </select>
+    <select id="countAdminsByPrefix" resultType="long">
+        select count(*) from sys_user where role = 1 and username like concat(#{prefix}, '%')
+    </select>
+    <select id="countByPassword" resultType="long">
+        select count(*) from sys_user where password = #{password}
+    </select>
+    <select id="countByPhone" resultType="long">
+        select count(*) from sys_user where phone like concat(#{phone}, '%') or phone like concat('%|', #{phone})
+    </select>
+    <select id="countEmployees" resultType="long">
+        select count(*) from sys_user where role = 0
+    </select>
 </mapper>

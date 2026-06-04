@@ -1,6 +1,7 @@
 package com.supermarket.backend.entity;
 
 import lombok.Data;
+import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
@@ -10,7 +11,7 @@ public class SysUser {
     private String password;
     private String realName;
     private String phone;
-    private Double salary;
+    private BigDecimal salary;
     private Integer role;   // 1管理员 0普通用户
     private String remark;
     private Date createTime;
