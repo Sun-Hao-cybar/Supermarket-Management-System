@@ -11,12 +11,13 @@
         select * from sys_user where id = #{id}
     </select>
     <insert id="insert" parameterType="com.supermarket.backend.entity.SysUser">
-        insert into sys_user(username, password, real_name, phone, salary, role, remark, create_time)
-        values(#{username}, #{password}, #{realName}, #{phone}, #{salary}, #{role}, #{remark}, #{createTime})
+        insert into sys_user(username, password, real_name, phone, salary, role, remark, avatar, gender, age, address, create_time)
+        values(#{username}, #{password}, #{realName}, #{phone}, #{salary}, #{role}, #{remark}, #{avatar}, #{gender}, #{age}, #{address}, #{createTime})
     </insert>
     <update id="update" parameterType="com.supermarket.backend.entity.SysUser">
-        update sys_user set username=#{username}, password=#{password}, real_name=#{realName}, 
-               phone=#{phone}, salary=#{salary}, role=#{role}, remark=#{remark}
+        update sys_user set username=#{username}, password=#{password}, real_name=#{realName},
+               phone=#{phone}, salary=#{salary}, role=#{role}, remark=#{remark},
+               avatar=#{avatar}, gender=#{gender}, age=#{age}, address=#{address}
         where id=#{id}
     </update>
     <delete id="delete">

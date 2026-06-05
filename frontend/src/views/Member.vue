@@ -5,12 +5,23 @@
       <el-button type="primary" @click="openAdd">新增</el-button>
       <el-button @click="handleExport">导出Excel</el-button>
     </div>
-    <el-table :data="list" border style="margin-top:15px">
-      <el-table-column label="编号" prop="id"/>
+    <el-table :data="pagedList" border style="margin-top:15px">
+      <el-table-column label="编号" type="index" width="60"/>
       <el-table-column label="会员编号" prop="memberNo"/>
       <el-table-column label="姓名" prop="name"/>
-      <el-table-column label="电话" prop="phone"/>
-      <el-table-column label="注册时间" prop="registerTime"/>
+      <el-table-column label="电话">
+        <template #default="scope">
+          {{ scope.row.phoneCode || '+86' }}|{{ scope.row.phoneNum }}
+        </template>
+      </el-table-column>
+      <el-table-column label="会员等级">
+        <template #default="scope">
+          <el-tag :type="scope.row.level === 'SVIP' ? 'danger' : scope.row.level === 'VIP' ? 'warning' : 'info'" size="small">
+            {{ scope.row.level || '普通会员' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="注册时间" prop="registerTimeFormatted"/>
       <el-table-column label="备注" prop="remark"/>
       <el-table-column label="操作">
         <template #default="scope">
@@ -19,6 +30,14 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+      v-if="list.length > pageSize"
+      v-model:current-page="currentPage"
+      :page-size="pageSize"
+      :total="list.length"
+      layout="prev, pager, next"
+      style="margin-top:15px; justify-content:center"
+    />
 
     <el-dialog v-model="show" title="会员" @close="show=false">
       <el-form :model="form">
@@ -26,9 +45,24 @@
           <el-input v-model="form.memberNo" :disabled="isEdit"/>
         </el-form-item>
         <el-form-item label="姓名"><el-input v-model="form.name"/></el-form-item>
-        <el-form-item label="电话"><el-input v-model="form.phone"/></el-form-item>
+        <el-form-item label="电话">
+          <div style="display: flex; gap: 10px;">
+            <el-select v-model="form.phoneCode" placeholder="请选择区号" style="width: 120px; color: #409EFF; font-weight: bold">
+              <el-option v-for="item in phoneCodeOptions" :key="item.code" :label="item.label" :value="item.code" style="color: #409EFF"/>
+            </el-select>
+            <el-input v-model="form.phoneNum" :placeholder="phonePlaceholder"/>
+          </div>
+        </el-form-item>
+        <el-form-item label="会员等级">
+          <el-select v-model="form.level" :disabled="!canChangeLevel">
+            <el-option label="普通会员" value="普通会员"/>
+            <el-option label="VIP" value="VIP"/>
+            <el-option label="SVIP" value="SVIP"/>
+          </el-select>
+          <span v-if="!canChangeLevel && isEdit && isAdminMember(form)" style="color:#909399; font-size:12px; margin-left:8px">管理员本人会员等级不可修改</span>
+        </el-form-item>
         <el-form-item label="注册时间">
-          <el-date-picker v-model="form.registerTime" type="date" placeholder="请选择日期" value-format="YYYY-MM-DD"/>
+          <el-date-picker v-model="form.registerTime" type="datetime" placeholder="请选择日期时间" value-format="YYYY-MM-DD HH:mm"/>
         </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark"/></el-form-item>
       </el-form>
@@ -41,22 +75,169 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getMemberList, addMember, updateMember, deleteMember, exportMember } from '@/api/member'
+
 const list = ref([])
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const show = ref(false)
 const form = ref({})
 const isEdit = ref(false)
+const role = ref('')
+const adminLevel = ref(0)
+
+// 三个管理员会员（M11xxx/M10xxx/M01xxx）的等级不可修改，其他会员等级可由管理员修改
+const isAdminMember = (member) => {
+  if (!member || !member.memberNo) return false
+  return /^M(11|10|01)/.test(member.memberNo)
+}
+
+const canChangeLevel = computed(() => {
+  if (!isEdit.value) return true  // 新增时可以选等级
+  if (role.value !== '1') return false  // 非管理员不能改
+  if (isAdminMember(form.value)) return false  // 三个管理员本人的会员等级不可改
+  return true
+})
+
+const phoneCodeOptions = [
+  { code: '+86', label: '+86 中国大陆', length: 11, pattern: /^1/ },
+  { code: '+852', label: '+852 中国香港', length: 8, pattern: /^(5|6|9)/ },
+  { code: '+853', label: '+853 中国澳门', length: 8, pattern: /^6/ },
+  { code: '+886', label: '+886 中国台湾', length: 10, pattern: /^09/ },
+  { code: '+81', label: '+81 日本', length: 10, pattern: /^[0-9]/ },
+  { code: '+82', label: '+82 韩国', length: 11, pattern: /^[0-9]/ },
+  { code: '+65', label: '+65 新加坡', length: 8, pattern: /^[0-9]/ },
+  { code: '+66', label: '+66 泰国', length: 10, pattern: /^[0-9]/ },
+  { code: '+60', label: '+60 马来西亚', length: 10, pattern: /^[0-9]/ },
+  { code: '+84', label: '+84 越南', length: 10, pattern: /^[0-9]/ },
+  { code: '+91', label: '+91 印度', length: 10, pattern: /^[0-9]/ },
+  { code: '+971', label: '+971 阿联酋', length: 9, pattern: /^[0-9]/ },
+  { code: '+966', label: '+966 沙特', length: 9, pattern: /^[0-9]/ },
+  { code: '+62', label: '+62 印尼', length: 12, pattern: /^[0-9]/ },
+  { code: '+63', label: '+63 菲律宾', length: 10, pattern: /^[0-9]/ },
+  { code: '+1', label: '+1 美国/加拿大', length: 10, pattern: /^[0-9]/ },
+  { code: '+7', label: '+7 俄罗斯', length: 10, pattern: /^[0-9]/ },
+  { code: '+44', label: '+44 英国', length: 11, pattern: /^[0-9]/ },
+  { code: '+49', label: '+49 德国', length: 11, pattern: /^[0-9]/ },
+  { code: '+33', label: '+33 法国', length: 9, pattern: /^[0-9]/ },
+  { code: '+39', label: '+39 意大利', length: 10, pattern: /^[0-9]/ },
+  { code: '+34', label: '+34 西班牙', length: 9, pattern: /^[0-9]/ },
+  { code: '+41', label: '+41 瑞士', length: 9, pattern: /^[0-9]/ },
+  { code: '+46', label: '+46 瑞典', length: 9, pattern: /^[0-9]/ },
+  { code: '+47', label: '+47 挪威', length: 8, pattern: /^[0-9]/ },
+  { code: '+61', label: '+61 澳大利亚', length: 9, pattern: /^[0-9]/ },
+  { code: '+64', label: '+64 新西兰', length: 9, pattern: /^[0-9]/ },
+  { code: '+55', label: '+55 巴西', length: 11, pattern: /^[0-9]/ },
+  { code: '+54', label: '+54 阿根廷', length: 10, pattern: /^[0-9]/ }
+]
+
+const phonePlaceholder = computed(() => {
+  const selected = phoneCodeOptions.find(item => item.code === form.value.phoneCode)
+  if (selected) {
+    return `请输入${selected.length}位电话号码${selected.pattern.source !== '/^[0-9]/' ? '，' + selected.label.split(' ')[1] + '手机号以' + selected.pattern.source.replace(/[\^\/]/g, '') + '开头' : ''}`
+  }
+  return '请输入电话号码'
+})
+
+const validatePhone = () => {
+  const selected = phoneCodeOptions.find(item => item.code === form.value.phoneCode)
+  const phoneNum = form.value.phoneNum
+  
+  if (!selected || !phoneNum) return true
+  
+  const phoneRegex = /^[0-9]+$/
+  if (!phoneRegex.test(phoneNum)) {
+    alert('电话号码只能包含数字')
+    return false
+  }
+  
+  if (phoneNum.length !== selected.length) {
+    alert(`${selected.label.split(' ')[1]}的电话号码必须是${selected.length}位`)
+    return false
+  }
+  
+  if (!selected.pattern.test(phoneNum)) {
+    alert(`${selected.label.split(' ')[1]}的电话号码必须以${selected.pattern.source.replace(/[\^\/]/g, '')}开头`)
+    return false
+  }
+  
+  return true
+}
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+  } catch (e) {
+    return dateStr
+  }
+}
 
 const loadData = async () => {
   const res = await getMemberList()
-  if (res.code === 200) list.value = res.data
+  if (res.code === 200) {
+    list.value = res.data.map(item => {
+      item.registerTimeFormatted = formatDateTime(item.registerTime)
+      if (item.phone) {
+        if (item.phone.includes('|')) {
+          const parts = item.phone.split('|')
+          item.phoneCode = parts[0] || '+86'
+          item.phoneNum = parts[1] || ''
+        } else {
+          const phoneCodeRegex = /^(\+86|\+852|\+853|\+886|\+81|\+82|\+65|\+66|\+60|\+84|\+91|\+971|\+966|\+62|\+63|\+1|\+7|\+44|\+49|\+33|\+39|\+34|\+41|\+46|\+47|\+61|\+64|\+55|\+54)/
+          const match = item.phone.match(phoneCodeRegex)
+          if (match) {
+            item.phoneCode = match[1]
+            item.phoneNum = item.phone.substring(match[1].length)
+          } else {
+            item.phoneCode = '+86'
+            item.phoneNum = item.phone
+          }
+        }
+      } else {
+        item.phoneCode = '+86'
+        item.phoneNum = ''
+      }
+      return item
+    })
+  }
 }
 
-const openAdd = () => { form.value = {}; isEdit.value = false; show.value = true }
-const openEdit = (row) => { form.value = { ...row }; isEdit.value = true; show.value = true }
+const openAdd = () => {
+  form.value = { phoneCode: '+86', phoneNum: '', level: '普通会员' }
+  isEdit.value = false
+  show.value = true
+}
+
+const openEdit = (row) => { 
+  form.value = { ...row }
+  if (!form.value.phoneCode) {
+    form.value.phoneCode = '+86'
+  }
+  if (!form.value.phoneNum && form.value.phone) {
+    const parts = form.value.phone.split('|')
+    form.value.phoneCode = parts[0] || '+86'
+    form.value.phoneNum = parts[1] || ''
+  }
+  isEdit.value = true
+  show.value = true 
+}
 
 const submit = async () => {
+  if (!validatePhone()) return
+  
+  if (form.value.phoneCode && form.value.phoneNum) {
+    form.value.phone = form.value.phoneCode + '|' + form.value.phoneNum
+  }
+  
   if (isEdit.value) {
     const res = await updateMember(form.value)
     alert(res.msg)
@@ -89,5 +270,7 @@ const handleExport = async () => {
   document.body.removeChild(a)
 }
 
+role.value = localStorage.getItem('role') || ''
+adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
 loadData()
 </script>

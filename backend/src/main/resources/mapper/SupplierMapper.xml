@@ -19,6 +19,9 @@
     <select id="selectAll" resultMap="BaseResultMap">
         select * from supplier
     </select>
+    <select id="selectByContactPhone" resultMap="BaseResultMap">
+        select * from supplier where contact_phone = #{contactPhone}
+    </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into supplier(supplier_code, supplier_name, short_name, address, phone, email, contact_person, contact_phone, remark)

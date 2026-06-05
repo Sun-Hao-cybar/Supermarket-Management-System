@@ -2,7 +2,9 @@ package com.supermarket.backend.service;
 
 import com.supermarket.backend.common.Result;
 import com.supermarket.backend.entity.Supplier;
+import com.supermarket.backend.mapper.MemberMapper;
 import com.supermarket.backend.mapper.SupplierMapper;
+import com.supermarket.backend.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -12,17 +14,52 @@ public class SupplierService {
 
     @Autowired
     private SupplierMapper supplierMapper;
+    @Autowired
+    private SysUserMapper sysUserMapper;
+    @Autowired
+    private MemberMapper memberMapper;
 
     public Result<List<Supplier>> list() {
         return Result.success(supplierMapper.selectAll());
     }
 
+    /**
+     * 检查联系人电话是否在供应商、员工、会员中已存在（同区号下全局唯一）
+     * 公司电话（supplier.phone）不在检查范围内
+     */
+    private Result<String> checkContactPhoneUnique(String phone) {
+        if (phone == null || phone.isEmpty()) return Result.success(null);
+
+        // 检查供应商表
+        if (supplierMapper.selectByContactPhone(phone) != null) return Result.error("该联系人电话已在供应商中使用");
+
+        // 检查员工表
+        if (sysUserMapper.countByPhone(phone) > 0) return Result.error("该电话号已在员工中使用");
+
+        // 检查会员表
+        if (memberMapper.selectByPhone(phone) != null) return Result.error("该电话号已在会员中使用");
+
+        return Result.success(null);
+    }
+
     public Result<String> add(Supplier supplier) {
+        Result<String> phoneCheck = checkContactPhoneUnique(supplier.getContactPhone());
+        if (!phoneCheck.getCode().equals(200)) {
+            return phoneCheck;
+        }
         supplierMapper.insert(supplier);
         return Result.success("添加成功");
     }
 
     public Result<String> update(Supplier supplier) {
+        // 修改时仅检查本表联系人电话不重复
+        if (supplier.getContactPhone() != null && !supplier.getContactPhone().isEmpty()) {
+            com.supermarket.backend.entity.Supplier existSupplier =
+                supplierMapper.selectByContactPhone(supplier.getContactPhone());
+            if (existSupplier != null && !existSupplier.getId().equals(supplier.getId())) {
+                return Result.error("该联系人电话已在供应商中使用");
+            }
+        }
         supplierMapper.update(supplier);
         return Result.success("修改成功");
     }

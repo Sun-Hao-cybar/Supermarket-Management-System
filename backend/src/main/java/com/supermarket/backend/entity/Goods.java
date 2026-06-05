@@ -11,6 +11,7 @@ public class Goods {
     private String goodsName;
     private BigDecimal price;
     private Long supplierId;
+    private String supplierName;
     private String intro;
     private String remark;
     private Date createTime;

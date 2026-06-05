@@ -9,6 +9,7 @@ public interface MemberMapper {
     List<Member> selectAll();
     Member selectById(Long id);
     Member selectByMemberNo(String memberNo);
+    Member selectByPhone(String phone);
     int insert(Member member);
     int update(Member member);
     int delete(Long id);

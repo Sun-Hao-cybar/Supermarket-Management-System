@@ -8,13 +8,16 @@
         <result column="goods_name" property="goodsName"/>
         <result column="price" property="price"/>
         <result column="supplier_id" property="supplierId"/>
+        <result column="supplier_name" property="supplierName"/>
         <result column="intro" property="intro"/>
         <result column="remark" property="remark"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 
     <select id="selectAll" resultMap="BaseResultMap">
-        select * from goods
+        select g.id, g.goods_code, g.goods_name, g.price, g.supplier_id, s.supplier_name, g.intro, g.remark, g.create_time
+        from goods g
+        left join supplier s on g.supplier_id = s.id
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

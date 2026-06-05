@@ -8,35 +8,70 @@
         </div>
       </div>
       <el-menu router background="#2f4050" text-color="#fff" active-text-color="#409EFF">
-        <el-menu-item index="/layout/user-info" v-if="role==2">👤 个人信息</el-menu-item>
-        <el-menu-item index="/layout/goods" v-if="role==2">📦 商品信息</el-menu-item>
-        <el-menu-item index="/layout/purchase" v-if="role==2">🧾 采购信息</el-menu-item>
+        <el-menu-item index="/layout/user-info">👤 个人信息</el-menu-item>
+        <el-menu-item index="/layout/goods" v-if="role=='0'">📦 商品信息</el-menu-item>
+        <el-menu-item index="/layout/purchase" v-if="role=='0'">🧾 采购信息</el-menu-item>
 
         <el-menu-item index="/layout/supplier" v-if="canManageSupplier">🏢 供应商管理</el-menu-item>
         <el-menu-item index="/layout/goods" v-if="canManageGoods">📦 商品管理</el-menu-item>
         <el-menu-item index="/layout/employee" v-if="canManageEmployee">👨‍💼 员工管理</el-menu-item>
-        <el-menu-item index="/layout/member" v-if="role==1">👥 会员管理</el-menu-item>
+        <el-menu-item index="/layout/member" v-if="role=='1'">👥 会员管理</el-menu-item>
         <el-menu-item index="/layout/purchase" v-if="canManagePurchase">🧾 采购管理</el-menu-item>
-        <el-menu-item index="/layout/supplier" v-if="role==1 && !canManageSupplier && canViewSupplier">👁️ 供应商管理</el-menu-item>
-        <el-menu-item index="/layout/goods" v-if="role==1 && !canManageGoods && canViewGoods">👁️ 商品管理</el-menu-item>
-        <el-menu-item index="/layout/employee" v-if="role==1 && !canManageEmployee && canViewEmployee">👁️ 员工管理</el-menu-item>
-        <el-menu-item index="/layout/purchase" v-if="role==1 && !canManagePurchase && canViewPurchase">👁️ 采购管理</el-menu-item>
+        <el-menu-item index="/layout/supplier" v-if="role=='1' && !canManageSupplier && canViewSupplier">👁️ 供应商管理</el-menu-item>
+        <el-menu-item index="/layout/goods" v-if="role=='1' && !canManageGoods && canViewGoods">👁️ 商品管理</el-menu-item>
+        <el-menu-item index="/layout/employee" v-if="role=='1' && !canManageEmployee && canViewEmployee">👁️ 员工管理</el-menu-item>
+        <el-menu-item index="/layout/purchase" v-if="role=='1' && !canManagePurchase && canViewPurchase">👁️ 采购管理</el-menu-item>
 
         <el-menu-item style="margin-top:30px" @click="logout">🚪 退出登录</el-menu-item>
       </el-menu>
     </el-aside>
-    <el-main style="background: rgba(255, 255, 255, 0.30); min-height: 100vh;"><router-view /></el-main>
+    <el-container>
+      <el-header style="height:60px; background:#fff; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:flex-end; padding:0 20px;">
+        <el-avatar :size="36" :src="avatarUrl" style="cursor:pointer; margin-right:8px" @click="goToProfile">
+          {{ currentUserName ? currentUserName.charAt(0) : '?' }}
+        </el-avatar>
+        <span style="cursor:pointer; color:#333" @click="goToProfile">{{ currentUserName }}</span>
+      </el-header>
+      <el-main style="background: rgba(255, 255, 255, 0.30); min-height: calc(100vh - 60px);"><router-view /></el-main>
+    </el-container>
   </el-container>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { checkHasEmployees } from '@/api/user'
+import { checkHasEmployees, getUserById } from '@/api/user'
 
 const router = useRouter()
 const role = ref('')
 const adminLevel = ref(0)
+const avatarUrl = ref('')
+const currentUserName = ref('')
+
+const goToProfile = () => {
+  if (router.currentRoute.value.path !== '/layout/user-info') {
+    router.push('/layout/user-info')
+  }
+}
+
+const loadAvatar = async () => {
+  // 优先读取缓存的头像（UserInfo页面保存后同步的）
+  const cached = localStorage.getItem('avatarCache')
+  if (cached) avatarUrl.value = cached
+
+  const userId = localStorage.getItem('userId')
+  if (userId) {
+    try {
+      const res = await getUserById(userId)
+      if (res.code === 200 && res.data) {
+        currentUserName.value = res.data.realName || ''
+        if (res.data.avatar && !cached) {
+          avatarUrl.value = res.data.avatar
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }
+}
 
 const isAdmin = computed(() => role.value === '1')
 
@@ -60,9 +95,10 @@ const canViewPurchase = computed(() => role.value === '1')
 onMounted(async () => {
   role.value = localStorage.getItem('role') || ''
   adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
-  
+  loadAvatar()
+
   // 检查员工表是否为空
-  if (role.value === '2') {
+  if (role.value === '0') {
     try {
       const res = await checkHasEmployees()
       if (res.code !== 200) {

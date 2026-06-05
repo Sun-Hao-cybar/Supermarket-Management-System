@@ -10,7 +10,7 @@
         <h2>🏪 超市进销存管理系统</h2>
         <el-radio-group v-model="form.role" class="role-box">
           <el-radio label="1">管理员</el-radio>
-          <el-radio label="2">普通用户</el-radio>
+          <el-radio label="0">普通用户</el-radio>
         </el-radio-group>
         <el-tabs v-model="activeTab">
           <el-tab-pane label="登录" name="login">
@@ -31,16 +31,15 @@
               </div>
               <div class="strength-text" :class="passwordStrengthClass">{{ passwordStrengthText }}</div>
               <div class="password-hints">
-                <div :class="{ valid: hasLowercase }">✓ 包含小写字母</div>
-                <div :class="{ valid: hasUppercase }">✓ 包含大写字母</div>
+                <div :class="{ valid: hasLetter }">✓ 包含至少一个字母（大写或小写）</div>
                 <div :class="{ valid: hasNumber }">✓ 包含数字</div>
                 <div :class="{ valid: hasSpecialChar }">✓ 包含特殊字符(@$!%*?&)</div>
                 <div :class="{ valid: regForm.password.length >= 8 }">✓ 至少8位</div>
               </div>
             </div>
             <div class="phone-input">
-              <el-select v-model="regForm.areaCode" placeholder="区号" style="width: 120px; margin-right: 10px">
-                <el-option v-for="area in areaCodes" :key="area.code" :label="area.label" :value="area.code" />
+              <el-select v-model="regForm.areaCode" placeholder="区号" style="width: 120px; margin-right: 10px; color: #409EFF; font-weight: bold">
+                <el-option v-for="area in areaCodes" :key="area.code" :label="area.label" :value="area.code" style="color: #409EFF" />
               </el-select>
               <el-input v-model="regForm.phoneNum" :placeholder="'手机号 (' + getPhoneLengthHint() + ')'" />
             </div>
@@ -54,14 +53,21 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { login as apiLogin, register as apiRegister, checkHasEmployees } from '@/api/user'
 
 const router = useRouter()
 const activeTab = ref('login')
 const form = ref({ role: '1', username: '', password: '' })
-const regForm = ref({ role: '1', username: '', password: '', realName: '', phoneNum: '', areaCode: '+86' })
+const regForm = ref({ username: '', password: '', realName: '', phoneNum: '', areaCode: '+86' })
+
+// 切换到注册 tab 时清空注册表单
+watch(activeTab, (newTab) => {
+  if (newTab === 'reg') {
+    regForm.value = { username: '', password: '', realName: '', phoneNum: '', areaCode: '+86' }
+  }
+})
 
 const areaCodes = [
   { code: '+86', label: '+86 中国大陆' },
@@ -95,16 +101,14 @@ const areaCodes = [
   { code: '+54', label: '+54 阿根廷' }
 ]
 
-const hasLowercase = computed(() => /[a-z]/.test(regForm.value.password))
-const hasUppercase = computed(() => /[A-Z]/.test(regForm.value.password))
+const hasLetter = computed(() => /[A-Za-z]/.test(regForm.value.password))
 const hasNumber = computed(() => /\d/.test(regForm.value.password))
 const hasSpecialChar = computed(() => /[@$!%*?&]/.test(regForm.value.password))
 
 const passwordStrength = computed(() => {
   let strength = 0
   if (regForm.value.password.length >= 8) strength++
-  if (hasLowercase.value) strength++
-  if (hasUppercase.value) strength++
+  if (hasLetter.value) strength++
   if (hasNumber.value) strength++
   if (hasSpecialChar.value) strength++
   return Math.min(strength, 4)
@@ -175,7 +179,7 @@ const truncateLoginUsername = () => {
 }
 
 const truncateRegUsername = () => {
-  const maxLength = regForm.value.role === '1' ? 6 : 9
+  const maxLength = form.value.role === '1' ? 6 : 9
   if (regForm.value.username && regForm.value.username.length > maxLength) {
     regForm.value.username = regForm.value.username.substring(0, maxLength)
   }
@@ -192,10 +196,8 @@ const login = async () => {
         adminLevel = 2
       } else if (form.value.username.startsWith('01')) {
         adminLevel = 3
-      } else if (form.value.username === 'admin') {
-        adminLevel = 1
       }
-      localStorage.setItem('role', form.value.role)
+      localStorage.setItem('role', res.data.role !== undefined ? String(res.data.role) : form.value.role)
       localStorage.setItem('userId', res.data.id)
       localStorage.setItem('username', res.data.username)
       localStorage.setItem('adminLevel', adminLevel.toString())
@@ -211,10 +213,11 @@ const login = async () => {
 const register = async () => {
   try {
     // 如果注册普通用户，先检查员工表中是否有该用户
-    if (regForm.value.role === '2') {
+    if (form.value.role === '0') {
       const res = await checkHasEmployees()
       if (res.code !== 200) {
-        alert('系统显示，目前没有合法员工')
+        alert('系统显示管理员还未录入员工信息，该用户为非法用户，不能注册，请联系管理员或者等待管理员录入员工信息后重试')
+        activeTab.value = 'login'
         return
       }
     }
@@ -225,7 +228,7 @@ const register = async () => {
       password: regForm.value.password,
       realName: regForm.value.realName,
       phone: phoneWithCode,
-      role: parseInt(regForm.value.role)
+      role: parseInt(form.value.role)
     })
     if (res.code === 200) {
       alert('注册成功！请登录')
@@ -238,7 +241,6 @@ const register = async () => {
   }
 }
 
-onMounted(() => {})
 </script>
 
 <style scoped>

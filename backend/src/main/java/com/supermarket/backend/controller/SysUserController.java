@@ -50,17 +50,25 @@ public class SysUserController {
 
     @PostMapping("/register")
     public Result<String> register(@RequestBody SysUser user) {
-        return sysUserService.add(user);
+        return sysUserService.add(user, true);  // 自行注册允许创建管理员
     }
 
     @PostMapping("/add")
     public Result<String> add(@RequestBody SysUser user) {
-        return sysUserService.add(user);
+        return sysUserService.add(user);  // 员工管理添加：禁止创建管理员
     }
 
     @PostMapping("/update")
     public Result<String> update(@RequestBody SysUser user) {
         return sysUserService.update(user);
+    }
+
+    @PostMapping("/updateProfile")
+    public Result<String> updateProfile(@RequestBody SysUser user,
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String oldPassword,
+            @RequestParam(required = false) String confirmPassword) {
+        return sysUserService.selfUpdate(userId, user, oldPassword, confirmPassword);
     }
 
     @GetMapping("/delete")

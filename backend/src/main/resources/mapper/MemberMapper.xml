@@ -3,6 +3,15 @@
 <mapper namespace="com.supermarket.backend.mapper.MemberMapper">
     <select id="selectAll" resultType="com.supermarket.backend.entity.Member">
         select * from member
+        order by
+          case member_no
+            when 'M110001' then 1
+            when 'M100001' then 2
+            when 'M010001' then 3
+            else 4
+          end,
+          case level when 'SVIP' then 1 when 'VIP' then 2 else 3 end,
+          id asc
     </select>
     <select id="selectById" resultType="com.supermarket.backend.entity.Member">
         select * from member where id = #{id}
@@ -10,9 +19,12 @@
     <select id="selectByMemberNo" resultType="com.supermarket.backend.entity.Member">
         select * from member where member_no = #{memberNo}
     </select>
+    <select id="selectByPhone" resultType="com.supermarket.backend.entity.Member">
+        select * from member where phone = #{phone} or phone = replace(#{phone}, '|', '') or phone = concat(substring_index(#{phone}, '|', 1), substring_index(#{phone}, '|', -1)) limit 1
+    </select>
     <insert id="insert" parameterType="com.supermarket.backend.entity.Member">
-        insert into member(member_no, name, phone, register_time, remark)
-        values(#{memberNo}, #{name}, #{phone}, #{registerTime}, #{remark})
+        insert into member(member_no, name, phone, level, register_time, remark)
+        values(#{memberNo}, #{name}, #{phone}, #{level}, #{registerTime}, #{remark})
     </insert>
     <update id="update" parameterType="com.supermarket.backend.entity.Member">
         update member
@@ -25,6 +37,9 @@
             </if>
             <if test="phone != null and phone != ''">
                 phone = #{phone},
+            </if>
+            <if test="level != null and level != ''">
+                level = #{level},
             </if>
             <if test="registerTime != null">
                 register_time = #{registerTime},

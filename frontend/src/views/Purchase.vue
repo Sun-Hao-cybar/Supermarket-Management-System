@@ -7,11 +7,15 @@
       <el-button @click="handleMainExport">导出主表Excel</el-button>
       <input ref="mainFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onMainFileSelect" />
     </div>
-    <el-table :data="mainList" border style="margin-top:15px">
+    <el-table :data="pagedMainList" border style="margin-top:15px">
       <el-table-column label="采购清单号" prop="purchaseNo"/>
       <el-table-column label="员工编号" prop="userId"/>
-      <el-table-column label="采购数量" prop="totalNum"/>
-      <el-table-column label="采购总价" prop="totalPrice"/>
+      <el-table-column label="采购数量">
+        <template #default="scope">{{ scope.row.totalNum }} 件</template>
+      </el-table-column>
+      <el-table-column label="采购总价">
+        <template #default="scope">{{ scope.row.totalPrice }} 元</template>
+      </el-table-column>
       <el-table-column label="采购时间" prop="purchaseTime"/>
       <el-table-column label="备注" prop="remark"/>
       <el-table-column label="操作" v-if="hasManagePermission">
@@ -21,6 +25,14 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+      v-if="mainList.length > pageSize"
+      v-model:current-page="mainPage"
+      :page-size="pageSize"
+      :total="mainList.length"
+      layout="prev, pager, next"
+      style="margin-top:15px; justify-content:center"
+    />
 
     <h4 style="margin-top:20px">采购明细</h4>
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -29,13 +41,19 @@
       <el-button @click="handleDetailExport">导出明细Excel</el-button>
       <input ref="detailFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onDetailFileSelect" />
     </div>
-    <el-table :data="detailList" border style="margin-top:15px">
+    <el-table :data="pagedDetailList" border style="margin-top:15px">
       <el-table-column label="明细号" prop="detailNo"/>
       <el-table-column label="采购清单号" prop="purchaseNo"/>
       <el-table-column label="商品编号" prop="goodsId"/>
-      <el-table-column label="采购数量" prop="goodsNum"/>
-      <el-table-column label="商品单价" prop="goodsPrice"/>
-      <el-table-column label="商品总价" prop="totalPrice"/>
+      <el-table-column label="采购数量">
+        <template #default="scope">{{ scope.row.goodsNum }} 件</template>
+      </el-table-column>
+      <el-table-column label="商品单价">
+        <template #default="scope">{{ scope.row.goodsPrice }} 元</template>
+      </el-table-column>
+      <el-table-column label="商品总价">
+        <template #default="scope">{{ scope.row.totalPrice }} 元</template>
+      </el-table-column>
       <el-table-column label="备注" prop="remark"/>
       <el-table-column label="操作" v-if="hasManagePermission">
         <template #default="scope">
@@ -44,6 +62,14 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+      v-if="detailList.length > pageSize"
+      v-model:current-page="detailPage"
+      :page-size="pageSize"
+      :total="detailList.length"
+      layout="prev, pager, next"
+      style="margin-top:15px; justify-content:center"
+    />
 
     <el-dialog v-model="mainShow" title="采购主表" @close="mainShow=false">
       <el-form :model="mainForm">
@@ -68,10 +94,22 @@
       <el-form :model="detailForm">
         <el-form-item label="明细号"><el-input v-model="detailForm.detailNo"/></el-form-item>
         <el-form-item label="采购清单号"><el-input v-model="detailForm.purchaseNo"/></el-form-item>
-        <el-form-item label="商品编号"><el-input v-model="detailForm.goodsId"/></el-form-item>
-        <el-form-item label="采购数量"><el-input v-model="detailForm.goodsNum"/></el-form-item>
-        <el-form-item label="商品单价"><el-input v-model="detailForm.goodsPrice"/></el-form-item>
-        <el-form-item label="商品总价"><el-input v-model="detailForm.totalPrice"/></el-form-item>
+        <el-form-item label="商品">
+          <el-select v-model="detailForm.goodsId" placeholder="请选择商品" @change="onGoodsChange" style="width:100%">
+            <el-option v-for="g in goodsList" :key="g.id" :label="g.goodsCode + ' - ' + g.goodsName + ' (' + g.price + '元)'" :value="g.id"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="采购数量">
+          <el-input-number v-model="detailForm.goodsNum" :min="1" @change="calcTotalPrice" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="商品单价">
+          <el-input-number v-model="detailForm.goodsPrice" :min="0" :step="0.01" disabled style="width:100%" />
+          <span style="color:#909399;font-size:12px">根据商品自动填写</span>
+        </el-form-item>
+        <el-form-item label="商品总价">
+          <el-input-number v-model="detailForm.totalPrice" :min="0" :step="0.01" disabled style="width:100%" />
+          <span style="color:#909399;font-size:12px">自动计算：数量 × 单价</span>
+        </el-form-item>
         <el-form-item label="备注"><el-input v-model="detailForm.remark"/></el-form-item>
       </el-form>
       <template #footer>
@@ -87,9 +125,16 @@ import { ref, computed, onMounted } from 'vue'
 import { getPurchaseMainList, addPurchaseMain, updatePurchaseMain, deletePurchaseMain, importPurchaseMain, exportPurchaseMain } from '@/api/purchaseMain'
 import { getPurchaseDetailList, addPurchaseDetail, updatePurchaseDetail, deletePurchaseDetail, importPurchaseDetail, exportPurchaseDetail } from '@/api/purchaseDetail'
 import { getUserList } from '@/api/user'
+import { getGoodsList } from '@/api/goods'
 
 const mainList = ref([])
 const detailList = ref([])
+const goodsList = ref([])
+const mainPage = ref(1)
+const detailPage = ref(1)
+const pageSize = ref(10)
+const pagedMainList = computed(() => mainList.value.slice((mainPage.value - 1) * pageSize.value, mainPage.value * pageSize.value))
+const pagedDetailList = computed(() => detailList.value.slice((detailPage.value - 1) * pageSize.value, detailPage.value * pageSize.value))
 const userList = ref([])
 const mainShow = ref(false)
 const detailShow = ref(false)
@@ -221,11 +266,31 @@ const loadUserData = async () => {
   if (res.code === 200) userList.value = res.data
 }
 
+const loadGoodsData = async () => {
+  const res = await getGoodsList()
+  if (res.code === 200) goodsList.value = res.data
+}
+
+const onGoodsChange = (goodsId) => {
+  const goods = goodsList.value.find(g => g.id === goodsId)
+  if (goods) {
+    detailForm.value.goodsPrice = goods.price
+    calcTotalPrice()
+  }
+}
+
+const calcTotalPrice = () => {
+  const num = parseFloat(detailForm.value.goodsNum) || 0
+  const price = parseFloat(detailForm.value.goodsPrice) || 0
+  detailForm.value.totalPrice = (num * price).toFixed(2)
+}
+
 onMounted(() => {
   role.value = localStorage.getItem('role') || ''
   adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
   loadMainData()
   loadDetailData()
   loadUserData()
+  loadGoodsData()
 })
 </script>

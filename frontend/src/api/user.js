@@ -14,3 +14,4 @@ export const importUser = (file) => {
 }
 export const exportUser = () => request.get('/user/export', { responseType: 'blob' })
 export const checkHasEmployees = () => request.get('/user/checkHasEmployees')
+export const updateProfile = (data, userId, oldPassword, confirmPassword) => request.post('/user/updateProfile', data, { params: { userId, oldPassword, confirmPassword } })

@@ -7,6 +7,7 @@ import java.util.List;
 @Mapper
 public interface SupplierMapper {
     List<Supplier> selectAll();
+    Supplier selectByContactPhone(String contactPhone);
     int insert(Supplier supplier);
     int update(Supplier supplier);
     int deleteById(Long id);

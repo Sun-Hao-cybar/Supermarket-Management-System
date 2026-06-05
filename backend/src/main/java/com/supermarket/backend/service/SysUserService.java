@@ -2,6 +2,8 @@ package com.supermarket.backend.service;
 
 import com.supermarket.backend.common.Result;
 import com.supermarket.backend.entity.SysUser;
+import com.supermarket.backend.mapper.MemberMapper;
+import com.supermarket.backend.mapper.SupplierMapper;
 import com.supermarket.backend.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,8 +16,12 @@ import java.util.regex.Pattern;
 public class SysUserService {
     @Autowired
     private SysUserMapper sysUserMapper;
+    @Autowired
+    private MemberMapper memberMapper;
+    @Autowired
+    private SupplierMapper supplierMapper;
 
-    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
     
     private static final String[] ADMIN_PREFIXES = {"11", "10", "01"};
 
@@ -36,6 +42,13 @@ public class SysUserService {
     }
 
     public Result<String> add(SysUser user) {
+        return add(user, false);
+    }
+
+    /**
+     * @param isSelfRegistration true=自行注册, false=管理员通过员工管理添加
+     */
+    public Result<String> add(SysUser user, boolean isSelfRegistration) {
         String phoneWithCode = user.getPhone();
         String areaCode = phoneWithCode != null && phoneWithCode.contains("|") ? phoneWithCode.split("\\|")[0] : "+86";
         String phone = phoneWithCode != null && phoneWithCode.contains("|") ? phoneWithCode.split("\\|")[1] : phoneWithCode;
@@ -46,6 +59,11 @@ public class SysUserService {
             user.setRole(0);
         }
 
+        // 管理员只能通过自行注册创建，不可通过员工管理添加
+        if (role == 1 && !isSelfRegistration) {
+            return Result.error("管理员只能通过自行注册创建，请联系管理员自行注册");
+        }
+
         if (role == 1) {
             Result<String> adminCheck = validateAdminRegistration(user.getUsername());
             if (!adminCheck.getCode().equals(200)) {
@@ -53,36 +71,69 @@ public class SysUserService {
             }
             user.setUsername(truncateUsername(user.getUsername(), 6));
         } else {
+            user.setUsername(truncateUsername(user.getUsername(), 9));
+
+            // 员工自行注册：更新已存在的员工记录
+            if (isSelfRegistration) {
+                SysUser existingEmp = sysUserMapper.selectByUsername(user.getUsername());
+                if (existingEmp == null) {
+                    return Result.error("此员工编号不存在，请联系管理员录入员工信息后再注册");
+                }
+                if (existingEmp.getPassword() != null && !existingEmp.getPassword().isEmpty()) {
+                    return Result.error("此员工已注册，请直接登录");
+                }
+                // 注册时校验密码和电话
+                Result<String> passwordCheck = validatePassword(user.getPassword());
+                if (!passwordCheck.getCode().equals(200)) return passwordCheck;
+                if (isPasswordExists(user.getPassword())) return Result.error("密码已被使用，请使用其他密码");
+                if (phone != null && !phone.isEmpty()) {
+                    Result<String> phoneCheckResult = validatePhone(areaCode, phone);
+                    if (!phoneCheckResult.getCode().equals(200)) return phoneCheckResult;
+                    if (isPhoneExists(areaCode, phone)) return Result.error("该地区的电话号码已被注册");
+                }
+                // 更新员工信息
+                existingEmp.setPassword(user.getPassword());
+                existingEmp.setRealName(user.getRealName());
+                existingEmp.setPhone(user.getPhone());
+                existingEmp.setCreateTime(new Date());
+                sysUserMapper.update(existingEmp);
+
+                // 注册后自动加入会员表
+                String memberLevel = "普通会员";
+                com.supermarket.backend.entity.Member member = new com.supermarket.backend.entity.Member();
+                member.setMemberNo("M" + existingEmp.getUsername());
+                member.setName(user.getRealName());
+                member.setPhone(user.getPhone());
+                member.setLevel(memberLevel);
+                member.setRegisterTime(new Date());
+                memberMapper.insert(member);
+
+                return Result.success("注册成功！请登录");
+            }
+
+            // 管理员新增员工：仅校验用户名格式，不校验密码/电话
             Result<String> employeeCheck = validateEmployeeUsername(user.getUsername());
             if (!employeeCheck.getCode().equals(200)) {
                 return employeeCheck;
             }
-            user.setUsername(truncateUsername(user.getUsername(), 9));
-            
-            Result<String> existCheck = validateEmployeeExists(user.getUsername());
-            if (!existCheck.getCode().equals(200)) {
-                return existCheck;
-            }
         }
 
-        Result<String> passwordCheck = validatePassword(user.getPassword());
-        if (!passwordCheck.getCode().equals(200)) {
-            return passwordCheck;
-        }
-
-        if (isPasswordExists(user.getPassword())) {
-            return Result.error("密码已被使用，请使用其他密码");
+        // 管理员新增或管理员注册：密码校验
+        if (isSelfRegistration) {
+            Result<String> passwordCheck = validatePassword(user.getPassword());
+            if (!passwordCheck.getCode().equals(200)) return passwordCheck;
+            if (isPasswordExists(user.getPassword())) return Result.error("密码已被使用，请使用其他密码");
         }
 
         if (phone != null && !phone.isEmpty()) {
-            Result<String> phoneCheck = validatePhone(areaCode, phone);
-            if (!phoneCheck.getCode().equals(200)) {
-                return phoneCheck;
-            }
+            Result<String> phoneCheckResult = validatePhone(areaCode, phone);
+            if (!phoneCheckResult.getCode().equals(200)) return phoneCheckResult;
+            if (isPhoneExists(areaCode, phone)) return Result.error("该地区的电话号码已被注册");
+        }
 
-            if (isPhoneExists(areaCode, phone)) {
-                return Result.error("该地区的电话号码已被注册");
-            }
+        // 管理员新增员工：密码留空，等员工注册时自行设置
+        if (user.getPassword() == null) {
+            user.setPassword("");
         }
 
         SysUser existing = sysUserMapper.selectByUsername(user.getUsername());
@@ -92,10 +143,36 @@ public class SysUserService {
 
         user.setCreateTime(new Date());
         sysUserMapper.insert(user);
+
+        // 管理员注册后自动加入会员表
+        if (role == 1) {
+            String username = user.getUsername();
+            String memberLevel;
+            if (username.startsWith("11")) {
+                memberLevel = "SVIP";
+            } else {
+                memberLevel = "VIP";
+            }
+            com.supermarket.backend.entity.Member member = new com.supermarket.backend.entity.Member();
+            member.setMemberNo("M" + username);
+            member.setName(user.getRealName());
+            member.setPhone(user.getPhone());
+            member.setLevel(memberLevel);
+            member.setRegisterTime(new Date());
+            memberMapper.insert(member);
+        }
+
         return Result.success("添加成功");
     }
 
     public Result<String> update(SysUser user) {
+        // 修改时仅检查本表电话不重复（编辑不拦截跨表同步）
+        String phone = user.getPhone();
+        if (phone != null && !phone.isEmpty()) {
+            if (sysUserMapper.countByPhone(phone) > 1) {
+                return Result.error("该电话号已在员工中使用");
+            }
+        }
         sysUserMapper.update(user);
         return Result.success("修改成功");
     }
@@ -103,6 +180,76 @@ public class SysUserService {
     public Result<String> delete(Long id) {
         sysUserMapper.delete(id);
         return Result.success("删除成功");
+    }
+
+    /**
+     * 当前用户自行编辑个人信息
+     * - 员工编号不可修改
+     * - 角色不可修改
+     * - 修改密码需提供旧密码验证+新密码二次确认
+     */
+    public Result<String> selfUpdate(Long userId, SysUser updateData, String oldPassword, String confirmPassword) {
+        SysUser current = sysUserMapper.selectById(userId);
+        if (current == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 员工编号不可修改
+        if (updateData.getUsername() != null && !updateData.getUsername().equals(current.getUsername())) {
+            return Result.error("员工编号不可修改");
+        }
+
+        // 角色不可修改
+        if (updateData.getRole() != null && !updateData.getRole().equals(current.getRole())) {
+            return Result.error("角色不可修改");
+        }
+
+        // 修改密码时需验证旧密码+二次确认
+        if (updateData.getPassword() != null && !updateData.getPassword().isEmpty()) {
+            if (oldPassword == null || !oldPassword.equals(current.getPassword())) {
+                return Result.error("旧密码不正确");
+            }
+            if (!updateData.getPassword().equals(confirmPassword)) {
+                return Result.error("两次输入的新密码不一致");
+            }
+            Result<String> pwdCheck = validatePassword(updateData.getPassword());
+            if (!pwdCheck.getCode().equals(200)) {
+                return pwdCheck;
+            }
+            if (isPasswordExists(updateData.getPassword())) {
+                return Result.error("密码已被使用，请使用其他密码");
+            }
+        } else {
+            // 不修改密码时保留原密码
+            updateData.setPassword(current.getPassword());
+        }
+
+        // 电话校验（如果修改了电话）
+        if (updateData.getPhone() != null && !updateData.getPhone().isEmpty()
+                && !updateData.getPhone().equals(current.getPhone())) {
+            if (updateData.getPhone().contains("|")) {
+                String[] parts = updateData.getPhone().split("\\|");
+                if (isPhoneExists(parts[0], parts[1])) {
+                    return Result.error("该电话号已被使用");
+                }
+            }
+        }
+
+        // 保留不可修改的字段，未传的字段保留原值
+        updateData.setId(userId);
+        updateData.setUsername(current.getUsername());
+        updateData.setRole(current.getRole());
+        if (updateData.getRealName() == null) updateData.setRealName(current.getRealName());
+        if (updateData.getPhone() == null) updateData.setPhone(current.getPhone());
+        if (updateData.getSalary() == null) updateData.setSalary(current.getSalary());
+        if (updateData.getRemark() == null) updateData.setRemark(current.getRemark());
+        if (updateData.getAvatar() == null) updateData.setAvatar(current.getAvatar());
+        if (updateData.getGender() == null) updateData.setGender(current.getGender());
+        if (updateData.getAge() == null) updateData.setAge(current.getAge());
+        if (updateData.getAddress() == null) updateData.setAddress(current.getAddress());
+
+        sysUserMapper.update(updateData);
+        return Result.success("个人信息更新成功");
     }
 
     public Result<String> validateAdminRegistration(String username) {
@@ -179,7 +326,7 @@ public class SysUserService {
             return Result.error("密码长度至少为8位");
         }
         if (!PASSWORD_PATTERN.matcher(password).matches()) {
-            return Result.error("密码必须包含大小写字母、数字和特殊字符(@$!%*?&)");
+            return Result.error("密码必须包含至少一个字母、数字和特殊字符(@$!%*?&)");
         }
         return Result.success("验证通过");
     }
@@ -342,7 +489,14 @@ public class SysUserService {
     }
 
     public boolean isPhoneExists(String areaCode, String phone) {
-        return sysUserMapper.countByPhone(areaCode + "|" + phone) > 0;
+        String fullPhone = areaCode + "|" + phone;
+        // 检查员工表
+        if (sysUserMapper.countByPhone(fullPhone) > 0) return true;
+        // 检查会员表
+        if (memberMapper.selectByPhone(fullPhone) != null) return true;
+        // 检查供应商联系人电话（非公司电话）
+        if (supplierMapper.selectByContactPhone(fullPhone) != null) return true;
+        return false;
     }
 
     public String getAdminType(String username) {

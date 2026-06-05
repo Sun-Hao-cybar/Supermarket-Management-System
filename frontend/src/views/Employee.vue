@@ -12,17 +12,22 @@
       <el-button @click="handleExport">导出Excel</el-button>
       <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelect" />
     </div>
-    <el-table :data="list" border style="margin-top:15px;">
-      <el-table-column label="编号" prop="id"/>
-      <el-table-column label="账号" prop="username"/>
+    <el-table :data="pagedList" border style="margin-top:15px;">
+      <el-table-column label="编号" type="index" width="60"/>
+      <el-table-column label="员工编号" prop="username"/>
       <el-table-column label="姓名" prop="realName"/>
       <el-table-column label="电话" prop="phone"/>
       <el-table-column label="工资" prop="salary"/>
-      <el-table-column label="角色">
+      <el-table-column label="员工级别">
         <template #default="scope">{{ scope.row.role === 1 ? '管理员' : '普通用户' }}</template>
       </el-table-column>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="创建时间" prop="createTime"/>
+      <el-table-column label="创建时间">
+        <template #default="scope">
+          <span>{{ formatDate(scope.row.createTime) }}</span><br/>
+          <span style="color:#909399; font-size:12px">{{ formatTime(scope.row.createTime) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" v-if="hasManagePermission">
         <template #default="scope">
           <el-button @click="openEdit(scope.row)">编辑</el-button>
@@ -30,56 +35,50 @@
         </template>
       </el-table-column>
     </el-table>
+    <el-pagination
+      v-if="list.length > pageSize"
+      v-model:current-page="currentPage"
+      :page-size="pageSize"
+      :total="list.length"
+      layout="prev, pager, next"
+      style="margin-top:15px; justify-content:center"
+    />
 
     <el-dialog v-model="show" title="员工" @close="show=false">
       <el-form :model="form">
-        <el-form-item label="账号">
-          <el-input v-model="form.username" placeholder="管理员6位(11/10/01开头)，普通用户9位(00开头)" @input="truncateUsername" />
+        <el-form-item label="员工编号">
+          <el-input v-model="form.username" :placeholder="isEdit ? '' : '9位员工编号(00开头)'" @input="truncateUsername" :disabled="isEdit" />
           <div v-if="usernameError" class="error-text">{{ usernameError }}</div>
         </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="form.password" show-password placeholder="至少8位，含大小写字母、数字、特殊字符" />
-          <div class="password-strength">
-            <div class="strength-label">密码强度：</div>
-            <div class="strength-bars">
-              <div class="bar" :class="{ weak: passwordStrength >= 1, medium: passwordStrength >= 2, strong: passwordStrength >= 3, veryStrong: passwordStrength >= 4 }"></div>
-              <div class="bar" :class="{ weak: passwordStrength >= 1, medium: passwordStrength >= 2, strong: passwordStrength >= 3, veryStrong: passwordStrength >= 4 }"></div>
-              <div class="bar" :class="{ medium: passwordStrength >= 2, strong: passwordStrength >= 3, veryStrong: passwordStrength >= 4 }"></div>
-              <div class="bar" :class="{ strong: passwordStrength >= 3, veryStrong: passwordStrength >= 4 }"></div>
+
+        <!-- 编辑模式才显示以下字段 -->
+        <template v-if="isEdit">
+          <el-form-item label="姓名">
+            <el-input v-model="form.realName" placeholder="请输入姓名" />
+          </el-form-item>
+          <el-form-item label="电话">
+            <div class="phone-input">
+              <el-select v-model="form.areaCode" placeholder="区号" style="width: 100px; margin-right: 10px; color: #409EFF; font-weight: bold">
+                <el-option v-for="area in areaCodes" :key="area.code" :label="area.code" :value="area.code" style="color: #409EFF" />
+              </el-select>
+              <el-input v-model="form.phoneNum" :placeholder="'手机号 (' + getPhoneLengthHint() + ')'" />
             </div>
-            <div class="strength-text" :class="passwordStrengthClass">{{ passwordStrengthText }}</div>
-            <div class="password-hints">
-              <div :class="{ valid: hasLowercase }">✓ 包含小写字母</div>
-              <div :class="{ valid: hasUppercase }">✓ 包含大写字母</div>
-              <div :class="{ valid: hasNumber }">✓ 包含数字</div>
-              <div :class="{ valid: hasSpecialChar }">✓ 包含特殊字符(@$!%*?&)</div>
-              <div :class="{ valid: form.password.length >= 8 }">✓ 至少8位</div>
-            </div>
-          </div>
-          <div v-if="passwordError" class="error-text">{{ passwordError }}</div>
-        </el-form-item>
-        <el-form-item label="姓名">
-          <el-input v-model="form.realName" placeholder="请输入姓名" />
-        </el-form-item>
-        <el-form-item label="电话">
-          <div class="phone-input">
-            <el-select v-model="form.areaCode" placeholder="区号" style="width: 100px; margin-right: 10px">
-              <el-option v-for="area in areaCodes" :key="area.code" :label="area.code" :value="area.code" />
-            </el-select>
-            <el-input v-model="form.phoneNum" :placeholder="'手机号 (' + getPhoneLengthHint() + ')'" />
-          </div>
-          <div v-if="phoneError" class="error-text">{{ phoneError }}</div>
-        </el-form-item>
+            <div v-if="phoneError" class="error-text">{{ phoneError }}</div>
+          </el-form-item>
+        </template>
+
         <el-form-item label="工资">
-          <el-input v-model="form.salary" type="number" placeholder="请输入工资" />
+          <el-input-number v-model="form.salary" :min="100" :step="100" placeholder="请输入工资" style="width:100%" />
         </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="form.role">
-            <el-option label="管理员" :value="1"/>
-            <el-option label="普通用户" :value="2"/>
-          </el-select>
+        <el-form-item label="员工级别">
+          <span style="color:#333">普通用户</span>
+          <span style="color:#909399; font-size:12px; margin-left:8px">管理员需自行注册，此处仅可添加普通员工</span>
         </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark"/></el-form-item>
+
+        <div v-if="!isEdit" style="color:#E6A23C; font-size:12px; padding:8px; background:#fdf6ec; border-radius:4px; margin-bottom:10px">
+          ⚠ 新增员工只需填写员工编号，姓名、密码、电话留空，等员工自行注册时填写
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="show=false">取消</el-button>
@@ -94,8 +93,11 @@ import { ref, computed, onMounted } from 'vue'
 import { getUserList, addUser, updateUser, deleteUser, importUser, exportUser } from '@/api/user'
 
 const list = ref([])
+const currentPage = ref(1)
+const pageSize = ref(10)
+const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const show = ref(false)
-const form = ref({ role: 2, areaCode: '+86' })
+const form = ref({ role: 0, areaCode: '+86', password: '' })
 const isEdit = ref(false)
 const fileInput = ref(null)
 const role = ref('')
@@ -162,16 +164,14 @@ const usernameError = computed(() => {
   return ''
 })
 
-const hasLowercase = computed(() => /[a-z]/.test(form.value.password))
-const hasUppercase = computed(() => /[A-Z]/.test(form.value.password))
+const hasLetter = computed(() => /[A-Za-z]/.test(form.value.password))
 const hasNumber = computed(() => /\d/.test(form.value.password))
 const hasSpecialChar = computed(() => /[@$!%*?&]/.test(form.value.password))
 
 const passwordStrength = computed(() => {
   let strength = 0
   if (form.value.password.length >= 8) strength++
-  if (hasLowercase.value) strength++
-  if (hasUppercase.value) strength++
+  if (hasLetter.value) strength++
   if (hasNumber.value) strength++
   if (hasSpecialChar.value) strength++
   return Math.min(strength, 4)
@@ -314,15 +314,33 @@ onMounted(() => {
   loadData()
 })
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const formatTime = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const s = String(d.getSeconds()).padStart(2, '0')
+  return `${h}:${min}:${s}`
+}
+
 const loadData = async () => {
   const res = await getUserList()
   if (res.code === 200) list.value = res.data
 }
 
-const openAdd = () => { 
-  form.value = { role: 2, areaCode: '+86' }
+const openAdd = () => {
+  form.value = { role: 0, salary: null, remark: '', username: '' }
   isEdit.value = false
-  show.value = true 
+  show.value = true
 }
 
 const openEdit = (row) => { 
@@ -342,20 +360,35 @@ const submit = async () => {
     alert(usernameError.value)
     return
   }
-  if (passwordError.value && !isEdit.value) {
-    alert(passwordError.value)
-    return
+
+  if (isEdit.value) {
+    // 编辑模式：需校验密码和电话
+    if (passwordError.value) {
+      alert(passwordError.value)
+      return
+    }
+    if (phoneError.value) {
+      alert(phoneError.value)
+      return
+    }
   }
-  if (phoneError.value) {
-    alert(phoneError.value)
-    return
-  }
-  
+
+  // 只有填写了电话号码才拼接
+  const phoneStr = (form.value.phoneNum && form.value.phoneNum.trim())
+    ? (form.value.areaCode || '+86') + '|' + form.value.phoneNum.trim()
+    : null
+
   const submitData = {
     ...form.value,
-    phone: form.value.areaCode + '|' + form.value.phoneNum
+    phone: phoneStr
   }
-  
+
+  // 新增员工：密码和电话都留空，由员工注册时自行设置
+  if (!isEdit.value) {
+    submitData.password = null
+    submitData.phone = null
+  }
+
   if (isEdit.value) {
     const res = await updateUser(submitData)
     alert(res.msg)
