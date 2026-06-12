@@ -501,11 +501,16 @@ const handleExport = async () => {
   margin-bottom: 12px;
 }
 
-/* 手机端适配 */
+/* 窄屏适配：工具栏竖排，搜索框+按钮各占一行 */
 @media (max-width: 767px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar .el-input,
   .toolbar .el-button {
-    font-size: 12px;
-    padding: 6px 10px;
+    width: 100%;
+    margin-right: 0 !important;
   }
 
   h3 {

@@ -185,6 +185,18 @@ const handleExport = async () => {
   margin-bottom: 12px;
 }
 
+@media (max-width: 767px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar .el-input,
+  .toolbar .el-button {
+    width: 100%;
+    margin-right: 0 !important;
+  }
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;
