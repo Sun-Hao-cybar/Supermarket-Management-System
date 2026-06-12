@@ -255,16 +255,30 @@ const OFF_TOPIC_PATTERNS = [
   { keywords: ['能做什么', '你会什么', '功能', '你能', '你会', '有什么功能', '介绍一下', '介绍一下自己', '自我介绍'], reply: '喵~ 我是进销存系统的AI助手小喵！我可以帮你解答系统操作的各种问题，包括：\n\n 员工管理 — 添加/编辑/删除员工、设置权限\n 会员管理 — 添加/编辑/删除会员、会员等级\n 商品管理 — 添加/编辑/删除商品、查看库存\n 采购管理 — 创建采购单/采购退货单、审批流程\n 供应商管理 — 添加/编辑/删除供应商\n\n直接输入你的问题，比如"如何添加商品"，我会立刻帮你解答！' }
 ]
 
+// 动作关键词（决定用户意图）— 3x 权重，确保"导入"不会被"查看"覆盖
+const ACTION_WEIGHT = 3
+const ACTION_WORDS = new Set([
+  '导入', '导出', 'excel',
+  '添加', '新增', '上架', '注册',
+  '编辑', '修改',
+  '删除', '移除', '下架',
+  '查询', '查看', '查找', '搜索', '浏览',
+  '如何', '怎么', '怎样', '在哪里看'
+])
+
 /**
- * 基于子串匹配计算得分（简单累加）
- * 命中关键词越多、关键词越长 → 得分越高
+ * 基于子串匹配计算得分
+ * - 动作关键词 3x 权重（导入/导出/添加/编辑/删除/查看）
+ * - 普通关键词 1x 权重
+ * - 命中越多、关键词越长 → 得分越高
  */
 function matchScore(message, keywords) {
   let score = 0
   let count = 0
   for (const kw of keywords) {
     if (message.includes(kw)) {
-      score += kw.length
+      const weight = ACTION_WORDS.has(kw) ? ACTION_WEIGHT : 1
+      score += kw.length * weight
       count++
     }
   }
