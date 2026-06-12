@@ -81,8 +81,8 @@ onMounted(() => {
   const savedX = localStorage.getItem('catPosX')
   const savedY = localStorage.getItem('catPosY')
   if (savedX !== null && savedY !== null) {
-    posX.value = parseInt(savedX)
-    posY.value = parseInt(savedY)
+    posX.value = parseInt(savedX, 10)
+    posY.value = parseInt(savedY, 10)
   } else {
     posX.value = window.innerWidth - 100
     posY.value = window.innerHeight - 200
@@ -125,6 +125,11 @@ let dragStartY = 0
 let startPosX = 0
 let startPosY = 0
 let hasMoved = false
+let onMouseMoveRef = null
+let onMouseUpRef = null
+let onTouchMoveRef = null
+let onTouchEndRef = null
+let bubbleTimer = null
 
 function clampPosition(x, y) {
   const maxX = window.innerWidth - catSize.value - 10
@@ -143,8 +148,10 @@ function onMouseDown(e) {
   startPosY = posY.value
   hasMoved = false
   isDragging.value = true
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  onMouseMoveRef = onMouseMove
+  onMouseUpRef = onMouseUp
+  document.addEventListener('mousemove', onMouseMoveRef)
+  document.addEventListener('mouseup', onMouseUpRef)
 }
 
 function onMouseMove(e) {
@@ -174,8 +181,10 @@ function onTouchStart(e) {
   startPosY = posY.value
   hasMoved = false
   isDragging.value = true
-  document.addEventListener('touchmove', onTouchMove, { passive: false })
-  document.addEventListener('touchend', onTouchEnd)
+  onTouchMoveRef = onTouchMove
+  onTouchEndRef = onTouchEnd
+  document.addEventListener('touchmove', onTouchMoveRef, { passive: false })
+  document.addEventListener('touchend', onTouchEndRef)
 }
 
 function onTouchMove(e) {
@@ -201,9 +210,10 @@ function onTouchEnd() {
 
 // 暴露方法给父组件
 function showBubble(text, duration = 5000) {
+  if (bubbleTimer) clearTimeout(bubbleTimer)
   bubbleText.value = text
   if (duration > 0) {
-    setTimeout(() => { bubbleText.value = '' }, duration)
+    bubbleTimer = setTimeout(() => { bubbleText.value = '' }, duration)
   }
 }
 
@@ -211,6 +221,11 @@ defineExpose({ showBubble, resetPosition })
 
 onUnmounted(() => {
   if (smartTimer) clearInterval(smartTimer)
+  if (bubbleTimer) clearTimeout(bubbleTimer)
+  if (onMouseMoveRef) document.removeEventListener('mousemove', onMouseMoveRef)
+  if (onMouseUpRef) document.removeEventListener('mouseup', onMouseUpRef)
+  if (onTouchMoveRef) document.removeEventListener('touchmove', onTouchMoveRef)
+  if (onTouchEndRef) document.removeEventListener('touchend', onTouchEndRef)
 })
 </script>
 
