@@ -1,6 +1,6 @@
 /**
  * 本地知识库 — 进销存系统预设问答
- * 匹配策略：关键词共现 + Jaccard 相似度，阈值 > 0.3 命中
+ * 匹配策略：子串匹配，用户输入包含关键词即可命中，长关键词权重更高
  * 未命中返回 null，由调用方转发后端 DeepSeek API
  */
 
@@ -230,29 +230,19 @@ const OFF_TOPIC_PATTERNS = [
 ]
 
 /**
- * 计算两个字符串集合的 Jaccard 相似度
+ * 基于子串匹配计算得分
+ * 同时检查用户输入和预设关键词之间的匹配度
  */
-function jaccardSimilarity(setA, setB) {
-  if (setA.size === 0 || setB.size === 0) return 0
-  let intersection = 0
-  for (const item of setA) {
-    if (setB.has(item)) intersection++
+function matchScore(message, keywords) {
+  let score = 0
+  for (const kw of keywords) {
+    if (message.includes(kw)) {
+      score += kw.length  // 长关键词权重更高
+    }
   }
-  const union = setA.size + setB.size - intersection
-  return intersection / union
+  return score
 }
 
-/**
- * 从文本中提取关键词（简单分词）
- */
-function extractKeywords(text) {
-  // 移除标点，按空格和常见分隔符分词
-  const cleaned = text.replace(/[，。！？、；：""''【】《》（）\s,.!?;:'"()\[\]{}#@$%^&*+=|\\/~`]+/g, ' ')
-  const words = cleaned.split(' ').filter(w => w.length > 0)
-  // 同时加入单字做短词匹配（中文字符）
-  const chars = text.replace(/[^一-龥]/g, '').split('')
-  return new Set([...words, ...chars])
-}
 
 /**
  * 检查是否为不合规/无关问题，命中则返回预设回复，否则返回 null
@@ -281,22 +271,19 @@ export function matchKnowledge(message) {
     return { answer: offTopicReply, question: '' }
   }
 
-  const inputKeywords = extractKeywords(message)
   let bestMatch = null
   let bestScore = 0
 
   for (const item of knowledgeBase) {
-    const itemKeywords = new Set([...item.keywords])
-    const score = jaccardSimilarity(inputKeywords, itemKeywords)
-
+    const score = matchScore(message, item.keywords)
     if (score > bestScore) {
       bestScore = score
       bestMatch = item
     }
   }
 
-  // 阈值 > 0.3 认为命中
-  if (bestMatch && bestScore > 0.3) {
+  // 至少匹配到一个关键词才认为命中
+  if (bestMatch && bestScore > 0) {
     return { answer: bestMatch.answer, question: bestMatch.question }
   }
 
