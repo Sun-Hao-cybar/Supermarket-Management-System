@@ -12,7 +12,12 @@ const knowledgeBase = [
     answer: '喵~ 添加员工很简单！登录管理员账号后，点击左侧"员工管理"，在页面顶部点击"添加员工"按钮，填写员工的账号、密码、姓名、电话、工资、角色等信息后保存即可。需要注意的是，只有一号和三号管理员才有员工管理权限哦~'
   },
   {
-    keywords: ['编辑', '修改', '员工', '信息'],
+    keywords: ['查询', '查看', '查找', '搜索', '员工', '信息', '列表', '在哪里看'],
+    question: '如何查询/查看员工信息？',
+    answer: '喵~ 点击左侧"员工管理"菜单，页面会显示所有员工的列表，可以直接浏览。如果想找特定员工，使用页面顶部的搜索框按姓名或账号筛选即可~'
+  },
+  {
+    keywords: ['编辑', '修改', '员工', '信息', '资料'],
     question: '如何编辑员工信息？',
     answer: '喵~ 在"员工管理"页面，找到需要编辑的员工，点击操作列的"编辑"按钮，修改信息后保存就可以啦！'
   },
@@ -84,6 +89,11 @@ const knowledgeBase = [
     keywords: ['添加', '商品', '新增', '上架'],
     question: '如何添加商品？',
     answer: '喵~ 点击左侧"商品管理"（或"商品信息"），在页面顶部点击"添加商品"按钮，填写商品名称、编码、分类、单价、库存数量、供应商等信息后保存即可~'
+  },
+  {
+    keywords: ['查看', '查询', '浏览', '搜索', '商品', '信息', '列表', '在哪里看'],
+    question: '如何查看商品信息？',
+    answer: '喵~ 点击左侧"商品管理"菜单，页面会显示所有商品的列表，包括名称、编码、库存、价格等信息。可以使用顶部分类筛选和搜索框快速找到特定商品~'
   },
   {
     keywords: ['编辑', '修改', '商品', '信息'],
@@ -160,6 +170,11 @@ const knowledgeBase = [
     answer: '喵~ 点击左侧"供应商管理"，在页面顶部点击"添加供应商"按钮，填写供应商名称、联系人、电话、地址等信息后保存~'
   },
   {
+    keywords: ['查看', '查询', '浏览', '搜索', '供应商', '列表', '在哪里看'],
+    question: '如何查看供应商信息？',
+    answer: '喵~ 点击左侧"供应商管理"菜单，页面会显示所有供应商的列表。可以按名称、联系人、电话等条件搜索筛选，找到特定的供应商~'
+  },
+  {
     keywords: ['编辑', '修改', '供应商'],
     question: '如何编辑供应商信息？',
     answer: '喵~ 在供应商列表中找到目标供应商，点击"编辑"按钮修改信息后保存即可~'
@@ -231,17 +246,19 @@ const OFF_TOPIC_PATTERNS = [
 ]
 
 /**
- * 基于子串匹配计算得分
- * 同时检查用户输入和预设关键词之间的匹配度
+ * 基于子串匹配计算得分（简单累加）
+ * 命中关键词越多、关键词越长 → 得分越高
  */
 function matchScore(message, keywords) {
   let score = 0
+  let count = 0
   for (const kw of keywords) {
     if (message.includes(kw)) {
-      score += kw.length  // 长关键词权重更高
+      score += kw.length
+      count++
     }
   }
-  return score
+  return { score, count }
 }
 
 
@@ -274,22 +291,27 @@ export function matchKnowledge(message) {
 
   let bestMatch = null
   let bestScore = 0
+  let bestCount = 0
+  let tied = false
 
   for (const item of knowledgeBase) {
-    const score = matchScore(message, item.keywords)
+    const { score, count } = matchScore(message, item.keywords)
     if (score > bestScore) {
       bestScore = score
+      bestCount = count
       bestMatch = item
+      tied = false
+    } else if (score === bestScore && score > 0) {
+      tied = true  // 平分 → 说明匹配不明确，交给 AI
     }
   }
 
-  // 至少匹配到一个关键词才认为命中
-  if (bestMatch && bestScore > 0) {
+  // 必须 ≥2 个关键词命中 且 无平局 → 才返回本地答案（避免张冠李戴）
+  if (bestMatch && bestCount >= 2 && !tied) {
     return { answer: bestMatch.answer, question: bestMatch.question }
   }
 
   return null
-}
 
 /**
  * 获取所有快捷问题（用于对话面板的快捷标签）
