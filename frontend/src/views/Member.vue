@@ -308,6 +308,14 @@ loadData()
 </script>
 
 <style scoped>
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .table-wrap {
   width: 100%;
   overflow-x: auto;

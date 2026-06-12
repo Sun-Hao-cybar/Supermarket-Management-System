@@ -478,6 +478,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .el-table .current-row > td {
   background-color: #ecf5ff !important;
 }

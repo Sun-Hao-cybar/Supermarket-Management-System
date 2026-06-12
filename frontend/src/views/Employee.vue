@@ -496,6 +496,7 @@ const handleExport = async () => {
 .toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-bottom: 12px;
 }
