@@ -1,14 +1,14 @@
 <template>
   <div
-    class="cat-avatar"
+    class="cat-wrapper"
     :class="{ 'is-dragging': isDragging, 'is-jumping': isJumping }"
     :style="positionStyle"
     @mousedown="onMouseDown"
     @touchstart.prevent="onTouchStart"
     @dblclick="resetPosition"
   >
-    <!-- 视频播放小猫（内层 clip 裁剪圆形） -->
-    <div class="cat-video-clip">
+    <!-- 小猫圆圈（overflow:hidden 保证完美圆形无黑边） -->
+    <div class="cat-avatar">
       <video
         ref="videoRef"
         class="cat-video"
@@ -21,14 +21,14 @@
       ></video>
     </div>
 
-    <!-- 状态气泡 -->
+    <!-- 状态气泡（在圆圈外部，不会被 overflow:hidden 裁剪） -->
     <transition name="bubble-fade">
       <div v-if="bubbleText" class="cat-bubble" @click.stop>
         {{ bubbleText }}
       </div>
     </transition>
 
-    <!-- 模式角标 -->
+    <!-- 模式角标（在圆圈外部） -->
     <span class="cat-badge" :title="modeLabel">{{ modeIcon }}</span>
   </div>
 </template>
@@ -37,7 +37,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
-  mode: { type: String, default: 'smart' },  // smart | quiet | fold
+  mode: { type: String, default: 'smart' },
   initialX: { type: Number, default: 0 },
   initialY: { type: Number, default: 0 }
 })
@@ -78,7 +78,6 @@ const modeLabel = computed(() => {
   }
 })
 
-// 初始化位置
 onMounted(() => {
   const savedX = localStorage.getItem('catPosX')
   const savedY = localStorage.getItem('catPosY')
@@ -90,35 +89,30 @@ onMounted(() => {
     posY.value = window.innerHeight - 200
   }
 
-  // 灵动模式：定时主动提示 + 跳跃
   if (props.mode === 'smart') {
     startSmartBehavior()
   }
 })
 
-// 保存位置
 function savePosition() {
   localStorage.setItem('catPosX', posX.value)
   localStorage.setItem('catPosY', posY.value)
 }
 
-// 重置到默认位置
 function resetPosition() {
   posX.value = window.innerWidth - 100
   posY.value = window.innerHeight - 200
   savePosition()
 }
 
-// 灵动模式主动行为
 let smartTimer = null
 function startSmartBehavior() {
   smartTimer = setInterval(() => {
-    // 随机跳跃
     if (Math.random() > 0.6) {
       isJumping.value = true
       setTimeout(() => { isJumping.value = false }, 600)
     }
-  }, 15000) // 每 15 秒可能跳一下
+  }, 15000)
 }
 
 // ========== 拖拽 ==========
@@ -210,7 +204,6 @@ function onTouchEnd() {
   }
 }
 
-// 暴露方法给父组件
 function showBubble(text, duration = 5000) {
   if (bubbleTimer) clearTimeout(bubbleTimer)
   bubbleText.value = text
@@ -232,22 +225,21 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.cat-avatar {
+/* ========== 外层包装器 ========== */
+.cat-wrapper {
   position: fixed;
   z-index: 9999;
   cursor: grab;
   user-select: none;
-  border-radius: 50%;
-  overflow: visible;
   transition: width 0.3s ease, height 0.3s ease;
 }
 
-.cat-avatar.is-dragging {
+.cat-wrapper.is-dragging {
   cursor: grabbing;
   transition: none;
 }
 
-.cat-avatar.is-jumping {
+.cat-wrapper.is-jumping {
   animation: catJump 0.6s ease;
 }
 
@@ -258,20 +250,19 @@ onUnmounted(() => {
   70% { transform: translateY(-8px) scale(0.95); }
 }
 
-/* 视频裁剪容器 — 确保完美圆形无黑边 */
-.cat-video-clip {
+/* ========== 小猫圆形主体（overflow:hidden 彻底裁剪黑边） ========== */
+.cat-avatar {
   width: 100%;
   height: 100%;
   border-radius: 50%;
   overflow: hidden;
-  /* 柔边遮罩融合白底 */
+  /* 柔光白边 + 投影 */
   box-shadow:
-    0 0 0 6px rgba(255, 255, 255, 0.85),
-    0 0 20px 8px rgba(255, 240, 220, 0.5),
-    0 4px 16px rgba(180, 130, 80, 0.15);
+    0 0 0 5px rgba(255, 255, 255, 0.9),
+    0 0 24px 6px rgba(255, 240, 220, 0.5),
+    0 4px 18px rgba(180, 130, 80, 0.18);
 }
 
-/* 视频播放 */
 .cat-video {
   width: 100%;
   height: 100%;
@@ -285,7 +276,7 @@ onUnmounted(() => {
   50% { transform: scale(1.05); }
 }
 
-/* 状态气泡 */
+/* ========== 状态气泡（在 wrapper 内、avatar 外） ========== */
 .cat-bubble {
   position: absolute;
   bottom: calc(100% + 10px);
@@ -309,7 +300,7 @@ onUnmounted(() => {
   transform: translateX(-50%) translateY(6px);
 }
 
-/* 模式角标 */
+/* ========== 模式角标（在 wrapper 内、avatar 外） ========== */
 .cat-badge {
   position: absolute;
   top: -4px;
