@@ -88,14 +88,18 @@ public class MemberService {
                 return Result.error("管理员本人的会员等级不可修改");
             }
         }
-        // 修改时检查跨表电话唯一性
-        if (member.getPhone() != null && !member.getPhone().isEmpty()) {
-            Member existMember = memberMapper.selectByPhone(member.getPhone());
+        // 只有电话号码发生变化时才进行唯一性检查
+        String newPhone = member.getPhone();
+        String oldPhone = existing != null ? existing.getPhone() : null;
+        boolean phoneChanged = newPhone != null && !newPhone.equals(oldPhone);
+
+        if (phoneChanged && newPhone != null && !newPhone.isEmpty()) {
+            Member existMember = memberMapper.selectByPhone(newPhone);
             if (existMember != null && !existMember.getId().equals(member.getId())) {
                 return Result.error("该电话号已在会员中使用");
             }
             // 跨表检查（员工和供应商联系人）
-            Result<String> crossCheck = checkPhoneUnique(member.getPhone());
+            Result<String> crossCheck = checkPhoneUnique(newPhone);
             if (!crossCheck.getCode().equals(200)) {
                 return crossCheck;
             }

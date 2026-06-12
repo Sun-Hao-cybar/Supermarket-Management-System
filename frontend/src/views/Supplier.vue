@@ -31,7 +31,7 @@
         </template>
       </el-table-column>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="操作" v-if="hasManagePermission">
+      <el-table-column label="操作" v-if="hasManagePermission" width="150">
         <template #default="scope">
           <el-button @click="openEdit(scope.row)">编辑</el-button>
           <el-button type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
@@ -209,27 +209,26 @@ const loadData = async () => {
   const res = await getSupplierList()
   if (res.code === 200) {
     list.value = res.data.map(item => {
+      let contactPhoneCode = '+86'
+      let contactPhoneNum = ''
       if (item.contactPhone) {
         if (item.contactPhone.includes('|')) {
           const parts = item.contactPhone.split('|')
-          item.contactPhoneCode = parts[0] || '+86'
-          item.contactPhoneNum = parts[1] || ''
+          contactPhoneCode = parts[0] || '+86'
+          contactPhoneNum = parts[1] || ''
         } else {
           const phoneCodeRegex = /^(\+86|\+852|\+853|\+886|\+81|\+82|\+65|\+66|\+60|\+84|\+91|\+971|\+966|\+62|\+63|\+1|\+7|\+44|\+49|\+33|\+39|\+34|\+41|\+46|\+47|\+61|\+64|\+55|\+54)/
           const match = item.contactPhone.match(phoneCodeRegex)
           if (match) {
-            item.contactPhoneCode = match[1]
-            item.contactPhoneNum = item.contactPhone.substring(match[1].length)
+            contactPhoneCode = match[1]
+            contactPhoneNum = item.contactPhone.substring(match[1].length)
           } else {
-            item.contactPhoneCode = '+86'
-            item.contactPhoneNum = item.contactPhone
+            contactPhoneCode = '+86'
+            contactPhoneNum = item.contactPhone
           }
         }
-      } else {
-        item.contactPhoneCode = '+86'
-        item.contactPhoneNum = ''
       }
-      return item
+      return { ...item, contactPhoneCode, contactPhoneNum }
     })
   }
 }

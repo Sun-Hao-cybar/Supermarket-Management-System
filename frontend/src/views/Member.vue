@@ -32,7 +32,7 @@
       </el-table-column>
       <el-table-column label="注册时间" prop="registerTimeFormatted"/>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="操作">
+      <el-table-column label="操作" width="150">
         <template #default="scope">
           <el-button @click="openEdit(scope.row)">编辑</el-button>
           <el-button type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
@@ -87,6 +87,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getMemberList, addMember, updateMember, deleteMember, exportMember } from '@/api/member'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
 const currentPage = ref(1)
@@ -181,17 +182,17 @@ const validatePhone = () => {
   
   const phoneRegex = /^[0-9]+$/
   if (!phoneRegex.test(phoneNum)) {
-    alert('电话号码只能包含数字')
+    ElMessage.warning('电话号码只能包含数字')
     return false
   }
-  
+
   if (phoneNum.length !== selected.length) {
-    alert(`${selected.label.split(' ')[1]}的电话号码必须是${selected.length}位`)
+    ElMessage.warning(`${selected.label.split(' ')[1]}的电话号码必须是${selected.length}位`)
     return false
   }
-  
+
   if (!selected.pattern.test(phoneNum)) {
-    alert(`${selected.label.split(' ')[1]}的电话号码必须以${selected.pattern.source.replace(/[\^\/]/g, '')}开头`)
+    ElMessage.warning(`${selected.label.split(' ')[1]}的电话号码必须以${selected.pattern.source.replace(/[\^\/]/g, '')}开头`)
     return false
   }
   
@@ -217,28 +218,26 @@ const loadData = async () => {
   const res = await getMemberList()
   if (res.code === 200) {
     list.value = res.data.map(item => {
-      item.registerTimeFormatted = formatDateTime(item.registerTime)
+      let phoneCode = '+86'
+      let phoneNum = ''
       if (item.phone) {
         if (item.phone.includes('|')) {
           const parts = item.phone.split('|')
-          item.phoneCode = parts[0] || '+86'
-          item.phoneNum = parts[1] || ''
+          phoneCode = parts[0] || '+86'
+          phoneNum = parts[1] || ''
         } else {
           const phoneCodeRegex = /^(\+86|\+852|\+853|\+886|\+81|\+82|\+65|\+66|\+60|\+84|\+91|\+971|\+966|\+62|\+63|\+1|\+7|\+44|\+49|\+33|\+39|\+34|\+41|\+46|\+47|\+61|\+64|\+55|\+54)/
           const match = item.phone.match(phoneCodeRegex)
           if (match) {
-            item.phoneCode = match[1]
-            item.phoneNum = item.phone.substring(match[1].length)
+            phoneCode = match[1]
+            phoneNum = item.phone.substring(match[1].length)
           } else {
-            item.phoneCode = '+86'
-            item.phoneNum = item.phone
+            phoneCode = '+86'
+            phoneNum = item.phone
           }
         }
-      } else {
-        item.phoneCode = '+86'
-        item.phoneNum = ''
       }
-      return item
+      return { ...item, registerTimeFormatted: formatDateTime(item.registerTime), phoneCode, phoneNum }
     })
   }
 }
@@ -265,28 +264,29 @@ const openEdit = (row) => {
 
 const submit = async () => {
   if (!validatePhone()) return
-  
+
   if (form.value.phoneCode && form.value.phoneNum) {
     form.value.phone = form.value.phoneCode + '|' + form.value.phoneNum
   }
-  
+
   if (isEdit.value) {
     const res = await updateMember(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   } else {
     const res = await addMember(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   }
   show.value = false
   loadData()
 }
 
 const handleDelete = async (id) => {
-  if (confirm('确定删除？')) {
+  try {
+    await ElMessageBox.confirm('确定删除？', '确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
     const res = await deleteMember(id)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
-  }
+  } catch { /* 取消 */ }
 }
 
 const handleExport = async () => {

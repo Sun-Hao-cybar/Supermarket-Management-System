@@ -27,6 +27,11 @@ public class PurchaseDetailService {
 
     @Transactional
     public Result<String> add(PurchaseDetail detail){
+        if (detail.getDetailNo() == null || detail.getDetailNo().isEmpty())
+            return Result.error("明细号不能为空");
+        // 检查明细号是否重复
+        if (purchaseDetailMapper.selectByDetailNo(detail.getDetailNo()) != null)
+            return Result.error("明细号已存在，请使用其他编号");
         purchaseDetailMapper.insert(detail);
         return Result.success("采购明细新增成功");
     }
@@ -35,6 +40,12 @@ public class PurchaseDetailService {
     public Result<String> update(PurchaseDetail detail, Long operatorUserId, Integer adminLevel){
         Result<String> permissionCheck = checkDetailPermission(detail.getId(), operatorUserId, adminLevel);
         if (permissionCheck != null) return permissionCheck;
+        // 检查明细号是否与其他记录重复
+        if (detail.getDetailNo() != null && !detail.getDetailNo().isEmpty()) {
+            PurchaseDetail exist = purchaseDetailMapper.selectByDetailNo(detail.getDetailNo());
+            if (exist != null && !exist.getId().equals(detail.getId()))
+                return Result.error("明细号已存在，请使用其他编号");
+        }
         purchaseDetailMapper.update(detail);
         return Result.success("采购明细修改成功");
     }

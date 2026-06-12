@@ -22,16 +22,20 @@
         <template #default="scope">{{ getUserLabel(scope.row.userId) }}</template>
       </el-table-column>
       <el-table-column label="采购数量">
-        <template #default="scope">{{ scope.row.totalNum || 0 }} 件</template>
+        <template #default="scope">
+          {{ (detailTotalsMap[scope.row.purchaseNo]?.totalNum || scope.row.totalNum || 0) }} 件
+        </template>
       </el-table-column>
       <el-table-column label="采购总价">
-        <template #default="scope">{{ scope.row.totalPrice || 0 }} 元</template>
+        <template #default="scope">
+          {{ ((scope.row.totalPrice || 0) * 1).toFixed(2) }} 元
+        </template>
       </el-table-column>
       <el-table-column label="采购时间">
         <template #default="scope">{{ scope.row.purchaseTime }}</template>
       </el-table-column>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="操作" v-if="hasManagePermission">
+      <el-table-column label="操作" v-if="hasManagePermission" width="150">
         <template #default="scope">
           <el-button @click.stop="openMainEdit(scope.row)" v-if="canManageRow(scope.row)">编辑</el-button>
           <el-button type="danger" @click.stop="handleMainDelete(scope.row)" v-if="canManageRow(scope.row)">删除</el-button>
@@ -57,7 +61,7 @@
       </span>
     </h4>
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-      <el-button type="primary" @click="openDetailAdd" v-if="hasManagePermission">新增明细</el-button>
+      <el-button type="primary" @click="handleDetailAddClick" v-if="hasManagePermission">新增明细</el-button>
       <el-button @click="handleDetailImport" v-if="hasManagePermission">导入明细Excel</el-button>
       <el-button @click="handleDetailExport">导出明细Excel</el-button>
       <input ref="detailFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onDetailFileSelect" />
@@ -85,7 +89,7 @@
         <template #default="scope">{{ scope.row.totalPrice }} 元</template>
       </el-table-column>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="操作" v-if="hasManagePermission">
+      <el-table-column label="操作" v-if="hasManagePermission" width="150">
         <template #default="scope">
           <el-button @click="openDetailEdit(scope.row)">编辑</el-button>
           <el-button type="danger" @click="handleDetailDelete(scope.row)">删除</el-button>
@@ -103,7 +107,7 @@
     </div>
 
     <!-- 主表对话框 -->
-    <el-dialog v-model="mainShow" title="采购主表" @close="mainShow=false">
+    <el-dialog v-model="mainShow" :title="isMainEdit ? '编辑采购单' : '新增采购单'" @close="mainShow=false">
       <el-form :model="mainForm">
         <el-form-item label="采购清单号"><el-input v-model="mainForm.purchaseNo"/></el-form-item>
         <el-form-item label="员工">
@@ -111,11 +115,31 @@
             <el-option v-for="user in availableEmployees" :key="user.id" :label="user.username + ' - ' + user.realName" :value="user.id"/>
           </el-select>
         </el-form-item>
+        <!-- 新增模式：商品/数量/单价/采购总价（提交时自动创建首条明细） -->
+        <template v-if="!isMainEdit">
+          <el-form-item label="商品">
+            <el-select v-model="mainForm.goodsId" placeholder="请选择商品" @change="onMainGoodsChange" style="width:100%">
+              <el-option v-for="g in goodsList" :key="g.id" :label="g.goodsCode + ' - ' + g.goodsName + ' (' + g.price + '元)'" :value="g.id"/>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="采购数量">
+            <el-input-number v-model="mainForm.goodsNum" :min="1" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="商品单价">
+            <el-input-number v-model="mainForm.goodsPrice" :min="0" :step="0.01" style="width:100%" />
+          </el-form-item>
+          <el-form-item label="采购总价">
+            <el-input-number v-model="mainForm.totalPrice" :min="0" :step="0.01" placeholder="手动输入采购总价" style="width:100%" />
+            <div style="color:#909399;font-size:12px;margin-top:4px">
+              采购总价需手动输入，可与明细汇总金额不同（如含运费、折扣等）
+            </div>
+          </el-form-item>
+        </template>
         <el-form-item label="采购时间">
           <el-date-picker v-model="mainForm.purchaseTime" type="date" placeholder="请选择日期" value-format="YYYY-MM-DD" style="width:100%"/>
         </el-form-item>
         <el-form-item label="备注"><el-input v-model="mainForm.remark"/></el-form-item>
-        <el-form-item>
+        <el-form-item v-if="isMainEdit">
           <span style="color:#909399;font-size:12px">采购数量和总价由明细自动汇总计算</span>
         </el-form-item>
       </el-form>
@@ -128,7 +152,9 @@
     <!-- 明细对话框 -->
     <el-dialog v-model="detailShow" title="采购明细" @close="detailShow=false">
       <el-form :model="detailForm">
-        <el-form-item label="明细号"><el-input v-model="detailForm.detailNo"/></el-form-item>
+        <el-form-item label="明细号">
+          <el-input v-model="detailForm.detailNo" disabled placeholder="自动生成（PD1, PD2...）"/>
+        </el-form-item>
         <el-form-item label="采购清单号">
           <el-input v-model="detailForm.purchaseNo" :disabled="!!selectedMainNo && !isDetailEdit" :placeholder="selectedMainNo || '请输入采购清单号'"/>
         </el-form-item>
@@ -162,8 +188,12 @@
           <el-descriptions-item label="采购清单号" :span="2">{{ infoMain.purchaseNo }}</el-descriptions-item>
           <el-descriptions-item label="员工">{{ getUserLabel(infoMain.userId) }}</el-descriptions-item>
           <el-descriptions-item label="采购时间">{{ infoMain.purchaseTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="采购数量">{{ infoMain.totalNum || 0 }} 件</el-descriptions-item>
-          <el-descriptions-item label="采购总价">{{ infoMain.totalPrice || 0 }} 元</el-descriptions-item>
+          <el-descriptions-item label="采购数量">
+            {{ (detailTotalsMap[infoMain.purchaseNo]?.totalNum || infoMain.totalNum || 0) }} 件
+          </el-descriptions-item>
+          <el-descriptions-item label="采购总价">
+            {{ ((infoMain.totalPrice || 0) * 1).toFixed(2) }} 元
+          </el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ infoMain.remark || '-' }}</el-descriptions-item>
         </el-descriptions>
         <h4 style="margin-bottom:10px">关联明细</h4>
@@ -225,15 +255,23 @@ const hasManagePermission = computed(() => {
 
 // 可选员工列表：只显示已注册的普通用户（password 非空表示已完成注册）
 const availableEmployees = computed(() => {
-  let list = userList.value.filter(u => u.role === 0 && u.password)
-  if (adminLevel.value === 3) {
-    const self = userList.value.find(u => u.id === currentUserId.value)
-    if (self) list.unshift(self)
-  }
-  return list
+  return userList.value.filter(u => u.role === 0 && u.password)
 })
 
 const pagedMainList = computed(() => mainList.value.slice((mainPage.value - 1) * pageSize.value, mainPage.value * pageSize.value))
+
+// 按采购单号汇总明细数量和总价（前端实时计算，不依赖数据库存储值）
+const detailTotalsMap = computed(() => {
+  const map = {}
+  for (const d of detailList.value) {
+    if (!map[d.purchaseNo]) {
+      map[d.purchaseNo] = { totalNum: 0, totalPrice: 0 }
+    }
+    map[d.purchaseNo].totalNum += (d.goodsNum || 0)
+    map[d.purchaseNo].totalPrice += (parseFloat(d.totalPrice) || 0)
+  }
+  return map
+})
 
 // 明细按选中的采购清单号过滤
 const filteredDetailList = computed(() => {
@@ -320,23 +358,56 @@ const loadDetailData = async () => {
   if (res.code === 200) detailList.value = res.data
 }
 
-// 重新计算主表汇总
-const recalcMainTotals = async (purchaseNo) => {
-  const details = detailList.value.filter(d => d.purchaseNo === purchaseNo)
-  const totalNum = details.reduce((sum, d) => sum + (d.goodsNum || 0), 0)
-  const totalPrice = details.reduce((sum, d) => sum + (parseFloat(d.totalPrice) || 0), 0)
-  const main = mainList.value.find(m => m.purchaseNo === purchaseNo)
-  if (main) {
-    await updatePurchaseMain({ ...main, totalNum, totalPrice: totalPrice.toFixed(2) }, currentUserId.value, adminLevel.value)
-    loadMainData()
+// 重新计算主表汇总（所有采购单）—— 仅更新数量，采购总价为手动输入不覆盖
+const recalcAllMainTotals = () => {
+  for (const main of mainList.value) {
+    const totals = detailTotalsMap.value[main.purchaseNo]
+    if (totals) {
+      main.totalNum = totals.totalNum
+    }
   }
 }
 
-const openMainAdd = () => { mainForm.value = {}; isMainEdit.value = false; mainShow.value = true }
+// 重新计算主表汇总并同步到后端（仅更新数量，采购总价保持不变）
+const recalcMainTotals = async (purchaseNo) => {
+  const totals = detailTotalsMap.value[purchaseNo]
+  const totalNum = totals?.totalNum || 0
+  const main = mainList.value.find(m => m.purchaseNo === purchaseNo)
+  if (main) {
+    // 先更新前端显示（仅数量）
+    main.totalNum = totalNum
+    // 再异步同步到后端
+    try {
+      await updatePurchaseMain({ ...main, totalNum }, currentUserId.value, adminLevel.value)
+    } catch { /* 后端更新失败不影响前端 */ }
+  }
+}
+
+const openMainAdd = () => { mainForm.value = { purchaseNo: 'PO', goodsNum: 1, goodsPrice: 0 }; isMainEdit.value = false; mainShow.value = true }
 const openMainEdit = (row) => { mainForm.value = { ...row }; isMainEdit.value = true; mainShow.value = true }
 
+const handleDetailAddClick = () => {
+  if (mainList.value.length === 0) {
+    ElMessage.warning('请先新增采购单，再添加明细')
+    return
+  }
+  openDetailAdd()
+}
+
+// 自动生成下一个明细号：PD1, PD2, PD3...
+const getNextDetailNo = () => {
+  let maxNum = 0
+  for (const d of detailList.value) {
+    if (d.detailNo && /^PD\d+$/.test(d.detailNo)) {
+      const num = parseInt(d.detailNo.substring(2))
+      if (num > maxNum) maxNum = num
+    }
+  }
+  return 'PD' + (maxNum + 1)
+}
+
 const openDetailAdd = () => {
-  detailForm.value = { goodsNum: 1, goodsPrice: 0, purchaseNo: selectedMainNo.value || '' }
+  detailForm.value = { detailNo: getNextDetailNo(), goodsNum: 1, goodsPrice: 0, purchaseNo: selectedMainNo.value || '' }
   isDetailEdit.value = false
   detailShow.value = true
 }
@@ -347,17 +418,51 @@ const submitMain = async () => {
     ElMessage.warning('请输入采购清单号')
     return
   }
+  if (!mainForm.value.userId) {
+    ElMessage.warning('请选择员工')
+    return
+  }
   if (isMainEdit.value) {
     const res = await updatePurchaseMain(mainForm.value, currentUserId.value, adminLevel.value)
     ElMessage.info(res.msg)
   } else {
-    mainForm.value.totalNum = 0
-    mainForm.value.totalPrice = 0
-    const res = await addPurchaseMain(mainForm.value)
-    ElMessage.info(res.msg)
+    // 新增：必填校验
+    if (!mainForm.value.goodsId) {
+      ElMessage.warning('请选择商品')
+      return
+    }
+    if (!mainForm.value.totalPrice && mainForm.value.totalPrice !== 0) {
+      ElMessage.warning('请输入采购总价')
+      return
+    }
+    const goodsNum = mainForm.value.goodsNum || 0
+    const goodsPrice = mainForm.value.goodsPrice || 0
+    const detailTotalPrice = goodsNum * goodsPrice  // 明细的商品总价 = 数量×单价
+    const mainTotalPrice = mainForm.value.totalPrice  // 主表的采购总价 = 手动输入
+
+    // 创建主表（使用手动输入的采购总价）
+    mainForm.value.totalNum = goodsNum
+    mainForm.value.totalPrice = mainTotalPrice
+    const mainRes = await addPurchaseMain(mainForm.value)
+    if (mainRes.code !== 200) {
+      ElMessage.error(mainRes.msg)
+      return
+    }
+    // 自动创建第一条采购明细（商品总价 = 数量×单价）
+    await addPurchaseDetail({
+      detailNo: getNextDetailNo(),
+      purchaseNo: mainForm.value.purchaseNo,
+      goodsId: mainForm.value.goodsId,
+      goodsNum,
+      goodsPrice,
+      totalPrice: detailTotalPrice
+    })
+    ElMessage.info('采购单新增成功')
   }
   mainShow.value = false
   loadMainData()
+  loadDetailData()
+  recalcAllMainTotals()
 }
 
 const submitDetail = async () => {
@@ -464,16 +569,24 @@ const onGoodsChange = (goodsId) => {
   }
 }
 
+const onMainGoodsChange = (goodsId) => {
+  const goods = goodsList.value.find(g => g.id === goodsId)
+  if (goods) {
+    mainForm.value.goodsPrice = goods.price
+  }
+}
+
 const calcTotalPrice = () => { /* 由 calcDisplayTotal 自动计算 */ }
 
-onMounted(() => {
+onMounted(async () => {
   role.value = localStorage.getItem('role') || ''
   adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
   currentUserId.value = parseInt(localStorage.getItem('userId') || '0')
-  loadMainData()
-  loadDetailData()
+  await Promise.all([loadMainData(), loadDetailData()])
   loadUserData()
   loadGoodsData()
+  // 主次数据加载完成后，用明细汇总主表
+  recalcAllMainTotals()
 })
 </script>
 

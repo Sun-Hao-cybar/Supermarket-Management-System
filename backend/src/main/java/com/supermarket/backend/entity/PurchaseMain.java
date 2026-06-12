@@ -13,8 +13,8 @@ public class PurchaseMain {
     private Long userId;
     private Integer totalNum;
     private BigDecimal totalPrice;
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm", timezone = "Asia/Shanghai")
-    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm")
+    @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Shanghai")
+    @DateTimeFormat(pattern = "yyyy-MM-dd")
     private Date purchaseTime;
     private String remark;
     private Date createTime;

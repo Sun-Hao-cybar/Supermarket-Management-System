@@ -19,6 +19,9 @@
     <select id="selectAll" resultMap="BaseResultMap">
         select * from supplier
     </select>
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from supplier where id = #{id}
+    </select>
     <select id="selectByContactPhone" resultMap="BaseResultMap">
         select * from supplier where contact_phone = #{contactPhone}
     </select>

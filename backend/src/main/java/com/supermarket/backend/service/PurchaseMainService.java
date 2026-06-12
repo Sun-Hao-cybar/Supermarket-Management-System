@@ -25,6 +25,13 @@ public class PurchaseMainService {
     }
 
     public Result<String> add(PurchaseMain main){
+        if (main.getPurchaseNo() == null || main.getPurchaseNo().isEmpty())
+            return Result.error("采购清单号不能为空");
+        if (main.getUserId() == null)
+            return Result.error("请选择员工");
+        // 检查采购清单号是否重复
+        if (purchaseMainMapper.selectByPurchaseNo(main.getPurchaseNo()) != null)
+            return Result.error("采购清单号已存在，请使用其他编号");
         // 自动计算总数量和总金额（如果未手动设置）
         if (main.getTotalNum() == null) main.setTotalNum(0);
         if (main.getTotalPrice() == null) main.setTotalPrice(java.math.BigDecimal.ZERO);
@@ -35,6 +42,12 @@ public class PurchaseMainService {
     public Result<String> update(PurchaseMain main, Long operatorUserId, Integer adminLevel){
         Result<String> permissionCheck = checkPurchasePermission(main.getId(), operatorUserId, adminLevel);
         if (permissionCheck != null) return permissionCheck;
+        // 检查采购清单号是否与其他记录重复
+        if (main.getPurchaseNo() != null && !main.getPurchaseNo().isEmpty()) {
+            PurchaseMain exist = purchaseMainMapper.selectByPurchaseNo(main.getPurchaseNo());
+            if (exist != null && !exist.getId().equals(main.getId()))
+                return Result.error("采购清单号已存在，请使用其他编号");
+        }
         purchaseMainMapper.update(main);
         return Result.success("采购单修改成功");
     }

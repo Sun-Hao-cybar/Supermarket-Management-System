@@ -60,15 +60,19 @@ public class SupplierService {
     @Transactional
     @CacheEvict(value = "supplierList", allEntries = true)
     public Result<String> update(Supplier supplier) {
-        // 修改时检查跨表电话唯一性
-        if (supplier.getContactPhone() != null && !supplier.getContactPhone().isEmpty()) {
-            com.supermarket.backend.entity.Supplier existSupplier =
-                supplierMapper.selectByContactPhone(supplier.getContactPhone());
+        // 只有联系人电话发生变化时才进行唯一性检查
+        Supplier existing = supplierMapper.selectById(supplier.getId());
+        String newPhone = supplier.getContactPhone();
+        String oldPhone = existing != null ? existing.getContactPhone() : null;
+        boolean phoneChanged = newPhone != null && !newPhone.equals(oldPhone);
+
+        if (phoneChanged && newPhone != null && !newPhone.isEmpty()) {
+            Supplier existSupplier = supplierMapper.selectByContactPhone(newPhone);
             if (existSupplier != null && !existSupplier.getId().equals(supplier.getId())) {
                 return Result.error("该联系人电话已在供应商中使用");
             }
             // 跨表检查
-            Result<String> crossCheck = checkContactPhoneUnique(supplier.getContactPhone());
+            Result<String> crossCheck = checkContactPhoneUnique(newPhone);
             if (!crossCheck.getCode().equals(200)) {
                 return crossCheck;
             }

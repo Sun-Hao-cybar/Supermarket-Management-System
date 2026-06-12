@@ -24,7 +24,7 @@
       <el-table-column label="供应商编号" prop="supplierCode"/>
       <el-table-column label="简介" prop="intro"/>
       <el-table-column label="备注" prop="remark"/>
-      <el-table-column label="操作" v-if="hasManagePermission">
+      <el-table-column label="操作" v-if="hasManagePermission" width="150">
         <template #default="scope">
           <el-button @click="openEdit(scope.row)">编辑</el-button>
           <el-button type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
@@ -107,10 +107,7 @@ const loadData = async () => {
   if (res.code === 200) {
     list.value = res.data.map(item => {
       const supplier = supplierList.value.find(s => s.id === item.supplierId)
-      if (supplier) {
-        item.supplierCode = supplier.supplierCode
-      }
-      return item
+      return { ...item, supplierCode: supplier ? supplier.supplierCode : item.supplierCode }
     })
   }
 }

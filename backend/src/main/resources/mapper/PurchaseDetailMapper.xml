@@ -20,6 +20,10 @@
         select * from purchase_detail where id = #{id}
     </select>
 
+    <select id="selectByDetailNo" resultMap="BaseResultMap">
+        select * from purchase_detail where detail_no = #{detailNo}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into purchase_detail(detail_no,purchase_no,goods_id,goods_num,goods_price,total_price,remark)
         values(#{detailNo},#{purchaseNo},#{goodsId},#{goodsNum},#{goodsPrice},#{totalPrice},#{remark})

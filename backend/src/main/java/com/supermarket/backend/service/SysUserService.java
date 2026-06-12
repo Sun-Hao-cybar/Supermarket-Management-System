@@ -98,7 +98,7 @@ public class SysUserService {
     // ==================== 写操作（带事务+锁+缓存清除） ====================
 
     @Transactional
-    @CacheEvict(value = {"user", "userList"}, allEntries = true)
+    @CacheEvict(value = {"user", "userList", "memberList"}, allEntries = true)
     public Result<String> add(SysUser user) {
         return add(user, false);
     }
@@ -259,7 +259,7 @@ public class SysUserService {
     }
 
     @Transactional
-    @CacheEvict(value = {"user", "userList"}, allEntries = true)
+    @CacheEvict(value = {"user", "userList", "memberList"}, allEntries = true)
     public Result<String> update(SysUser user) {
         String phone = user.getPhone();
         if (phone != null && !phone.isEmpty()) {
@@ -270,9 +270,15 @@ public class SysUserService {
                 String[] parts = phone.split("\\|");
                 if (parts.length >= 2) {
                     String fullPhone = parts[0] + "|" + parts[1];
-                    // 只检查会员表和供应商表（员工表已在上面检查过并排除了自己）
-                    if (memberMapper.selectByPhone(fullPhone) != null)
-                        return Result.error("该电话号已在会员中使用");
+                    // 检查会员表（排除员工自己对应的会员记录）
+                    com.supermarket.backend.entity.Member memberByPhone = memberMapper.selectByPhone(fullPhone);
+                    if (memberByPhone != null) {
+                        String ownMemberNo = "M" + user.getUsername();
+                        if (!ownMemberNo.equals(memberByPhone.getMemberNo())) {
+                            return Result.error("该电话号已在会员中使用");
+                        }
+                    }
+                    // 检查供应商表（排除自己）
                     if (supplierMapper.selectByContactPhone(fullPhone) != null)
                         return Result.error("该电话号已在供应商中使用");
                 }
@@ -319,7 +325,7 @@ public class SysUserService {
     }
 
     @Transactional
-    @CacheEvict(value = {"user", "userList"}, allEntries = true)
+    @CacheEvict(value = {"user", "userList", "memberList"}, allEntries = true)
     public Result<String> delete(Long id) {
         // 级联删除对应的会员记录
         SysUser user = sysUserMapper.selectById(id);

@@ -41,7 +41,7 @@
           <span style="color:#909399; font-size:12px">{{ formatTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" v-if="hasManagePermission">
+      <el-table-column label="操作" v-if="hasManagePermission" width="150">
         <template #default="scope">
           <el-button @click="openEdit(scope.row)" v-if="canEditRow(scope.row)">编辑</el-button>
           <el-button type="danger" @click="handleDelete(scope.row.id)" v-if="canEditRow(scope.row)">删除</el-button>
@@ -93,8 +93,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="员工级别">
-          <span style="color:#333">普通用户</span>
-          <span style="color:#909399; font-size:12px; margin-left:8px">管理员需自行注册，此处仅可添加普通员工</span>
+          <template v-if="isEdit">
+            <span style="color:#333">{{ form.role === 1 ? '管理员' : '普通用户' }}</span>
+          </template>
+          <template v-else>
+            <span style="color:#333">普通用户</span>
+            <span style="color:#909399; font-size:12px; margin-left:8px">管理员需自行注册，此处仅可添加普通员工</span>
+          </template>
         </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark"/></el-form-item>
 
