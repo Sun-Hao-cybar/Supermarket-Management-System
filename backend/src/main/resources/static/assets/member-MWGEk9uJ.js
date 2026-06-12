@@ -1,2 +1,0 @@
-import{t as e}from"./request-Bixd55ac.js";var t=()=>e.get(`/member/list`),n=t=>e.post(`/member/add`,t),r=t=>e.post(`/member/update`,t),i=t=>e.get(`/member/delete`,{params:{id:t}}),a=()=>e.get(`/member/export`,{responseType:`blob`});export{r as a,t as i,i as n,a as r,n as t};
-//# sourceMappingURL=member-MWGEk9uJ.js.map

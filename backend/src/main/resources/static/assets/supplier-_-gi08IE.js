@@ -1,0 +1,2 @@
+import{t as e}from"./request-DPUlPpD4.js";var t=()=>e.get(`/supplier/list`),n=t=>e.post(`/supplier/add`,t),r=t=>e.post(`/supplier/update`,t),i=t=>e.get(`/supplier/delete`,{params:{id:t}}),a=t=>{let n=new FormData;return n.append(`file`,t),e.post(`/supplier/import`,n,{headers:{"Content-Type":`multipart/form-data`}})},o=()=>e.get(`/supplier/export`,{responseType:`blob`});export{a,t as i,i as n,r as o,o as r,n as t};
+//# sourceMappingURL=supplier-_-gi08IE.js.map

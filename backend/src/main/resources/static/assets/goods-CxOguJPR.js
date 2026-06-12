@@ -1,2 +1,0 @@
-import{t as e}from"./request-Bixd55ac.js";var t=()=>e.get(`/goods/list`),n=t=>e.post(`/goods/add`,t),r=t=>e.post(`/goods/update`,t),i=t=>e.get(`/goods/delete`,{params:{id:t}}),a=t=>{let n=new FormData;return n.append(`file`,t),e.post(`/goods/import`,n,{headers:{"Content-Type":`multipart/form-data`}})},o=()=>e.get(`/goods/export`,{responseType:`blob`});export{a,t as i,i as n,r as o,o as r,n as t};
-//# sourceMappingURL=goods-CxOguJPR.js.map
