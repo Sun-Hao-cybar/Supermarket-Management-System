@@ -35,6 +35,7 @@ import CatAvatar from './CatAvatar.vue'
 import ChatDialog from './ChatDialog.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import { matchKnowledge } from '@/utils/knowledgeBase'
+import { lookupCache, saveToCache } from '@/utils/conversationCache'
 import { sendMessage } from '@/api/agent'
 
 const mode = ref('smart')
@@ -113,7 +114,15 @@ async function handleSend(text) {
     return
   }
 
-  // 2. 未命中，调用后端 DeepSeek API
+  // 2. 查自学习缓存（之前 AI 成功回答过的问题）
+  const cached = lookupCache(text)
+  if (cached) {
+    messages.value.push({ role: 'agent', content: cached.answer })
+    cleanMessages()
+    return
+  }
+
+  // 3. 缓存未命中，调用后端 DeepSeek API
   isLoading.value = true
   try {
     const history = messages.value.slice(0, -1).map(m => ({
@@ -123,6 +132,12 @@ async function handleSend(text) {
     const res = await sendMessage(text, history)
     const reply = res?.data?.reply || '喵~ 抱歉，我暂时无法回答这个问题，请稍后再试~'
     messages.value.push({ role: 'agent', content: reply })
+
+    // 自动存入缓存，下次同样问题秒回
+    if (res?.data?.reply) {
+      saveToCache(text, res.data.reply)
+    }
+
     cleanMessages()
   } catch (e) {
     messages.value.push({ role: 'agent', content: '喵~ 网络好像不太稳定，请检查后端服务是否启动，稍后再试~' })
