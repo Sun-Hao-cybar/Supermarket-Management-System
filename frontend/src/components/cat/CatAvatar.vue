@@ -264,8 +264,10 @@ onUnmounted(() => {
 }
 
 .cat-video {
-  width: 100%;
-  height: 100%;
+  /* 放大 8% 把视频自带的黑边推出 overflow:hidden 裁剪区 */
+  width: 108%;
+  height: 108%;
+  margin: -4%;
   object-fit: cover;
   display: block;
   animation: catBreathe 4s ease-in-out infinite;
