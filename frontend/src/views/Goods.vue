@@ -2,6 +2,14 @@
   <div class="p-4">
     <h3>商品管理</h3>
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <el-input
+        v-model="searchText"
+        placeholder="搜索商品名称 / 编码..."
+        clearable
+        size="small"
+        style="width: 240px; margin-right: 8px"
+        @input="currentPage = 1"
+      />
       <el-button type="primary" @click="openAdd" v-if="hasManagePermission">新增</el-button>
       <el-button @click="handleImport" v-if="hasManagePermission">导入Excel</el-button>
       <el-button @click="handleExport">导出Excel</el-button>
@@ -24,10 +32,10 @@
       </el-table-column>
     </el-table>
     <el-pagination
-      v-if="list.length > pageSize"
+      v-if="filteredList.length > pageSize"
       v-model:current-page="currentPage"
       :page-size="pageSize"
-      :total="list.length"
+      :total="filteredList.length"
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
@@ -65,7 +73,16 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const list = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
-const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
+const searchText = ref('')
+const filteredList = computed(() => {
+  const kw = searchText.value.trim().toLowerCase()
+  if (!kw) return list.value
+  return list.value.filter(row =>
+    (row.goodsName && row.goodsName.toLowerCase().includes(kw)) ||
+    (row.goodsCode && row.goodsCode.toLowerCase().includes(kw))
+  )
+})
+const pagedList = computed(() => filteredList.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const supplierList = ref([])
 const show = ref(false)
 const form = ref({})
