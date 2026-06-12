@@ -1,5 +1,12 @@
 server:
   port: 8080
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,image/svg+xml
+    min-response-size: 1024
+  error:
+    whitelabel:
+      enabled: false
 
 spring:
   datasource:
@@ -7,10 +14,57 @@ spring:
     url: jdbc:mysql://localhost:3306/supermarket_db?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: Sh241612
-    # 自己的密码
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  # Redis 配置（有Redis时取消注释并设置环境变量REDIS_HOST）
+  # data:
+  #   redis:
+  #     host: ${REDIS_HOST:localhost}
+  #     port: ${REDIS_PORT:6379}
+  #     timeout: 3000ms
+  #     lettuce:
+  #       pool:
+  #         max-active: 16
+  #         max-idle: 8
+  #         min-idle: 4
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+  # 缓存配置（Caffeine本地缓存 + Redis分布式缓存）
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=600s
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.supermarket.backend.entity
   configuration:
     map-underscore-to-camel-case: true
+
+# 异步线程池配置
+async:
+  thread-pool:
+    core-pool-size: 8
+    max-pool-size: 16
+    queue-capacity: 100
+    keep-alive-seconds: 60
+    thread-name-prefix: supermarket-async-
+
+# 日志
+logging:
+  level:
+    com.supermarket.backend: DEBUG
+    org.springframework.cache: TRACE
+
+# DeepSeek AI Agent 配置
+agent:
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:sk-your-deepseek-api-key}
+    api-url: https://api.deepseek.com/v1/chat/completions
+    model: deepseek-chat
