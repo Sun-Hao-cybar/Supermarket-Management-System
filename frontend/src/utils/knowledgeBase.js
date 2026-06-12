@@ -185,11 +185,6 @@ const knowledgeBase = [
     answer: '喵~ 在供应商列表中找到对应供应商，点击"删除"按钮确认即可。如果该供应商有关联的商品，删除前需要先解除关联哦~'
   },
   {
-    keywords: ['查询', '搜索', '供应商', '查找'],
-    question: '如何查找供应商？',
-    answer: '喵~ 点击左侧"供应商管理"，在顶部搜索框中输入供应商名称、编码或联系人姓名，即可快速筛选找到目标供应商~'
-  },
-  {
     keywords: ['联系人', '供应商电话', '供应商地址'],
     question: '供应商信息包括哪些？',
     answer: '喵~ 供应商信息主要包括：供应商名称、联系人姓名、联系电话、地址、备注等。添加供应商时建议尽量填写完整，方便后续采购时联系~'
@@ -292,7 +287,6 @@ export function matchKnowledge(message) {
   let bestMatch = null
   let bestScore = 0
   let bestCount = 0
-  let tied = false
 
   for (const item of knowledgeBase) {
     const { score, count } = matchScore(message, item.keywords)
@@ -300,14 +294,15 @@ export function matchKnowledge(message) {
       bestScore = score
       bestCount = count
       bestMatch = item
-      tied = false
-    } else if (score === bestScore && score > 0) {
-      tied = true  // 平分 → 说明匹配不明确，交给 AI
+    } else if (score === bestScore && count > bestCount) {
+      // 得分相同 → 选匹配关键词更多的（更精确）
+      bestCount = count
+      bestMatch = item
     }
   }
 
-  // 必须 ≥2 个关键词命中 且 无平局 → 才返回本地答案（避免张冠李戴）
-  if (bestMatch && bestCount >= 2 && !tied) {
+  // ≥2 个关键词命中 → 返回本地答案
+  if (bestMatch && bestCount >= 2) {
     return { answer: bestMatch.answer, question: bestMatch.question }
   }
 
