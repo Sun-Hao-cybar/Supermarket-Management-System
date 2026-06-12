@@ -7,6 +7,14 @@
       </div>
     </div>
     <div class="toolbar">
+      <el-input
+        v-model="searchText"
+        placeholder="搜索姓名 / 员工编号 / 电话..."
+        clearable
+        size="small"
+        style="width: 240px; margin-right: 8px"
+        @input="currentPage = 1"
+      />
       <el-button type="primary" @click="openAdd" v-if="hasManagePermission" size="small">新增</el-button>
       <el-button @click="handleImport" v-if="hasManagePermission" size="small">导入Excel</el-button>
       <el-button @click="handleExport" size="small">导出Excel</el-button>
@@ -44,7 +52,7 @@
       v-if="list.length > pageSize"
       v-model:current-page="currentPage"
       :page-size="pageSize"
-      :total="list.length"
+      :total="filteredList.length"
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
@@ -146,7 +154,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const list = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
-const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
+const searchText = ref('')
+const filteredList = computed(() => {
+  const kw = searchText.value.trim().toLowerCase()
+  if (!kw) return list.value
+  return list.value.filter(row =>
+    (row.realName && row.realName.toLowerCase().includes(kw)) ||
+    (row.username && row.username.toLowerCase().includes(kw)) ||
+    (row.phone && row.phone.includes(kw))
+  )
+})
+const pagedList = computed(() => filteredList.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const show = ref(false)
 const detailShow = ref(false)
 const detailUser = ref(null)
