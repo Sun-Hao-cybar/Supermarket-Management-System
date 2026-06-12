@@ -7,7 +7,8 @@
       <el-button @click="handleExport">导出Excel</el-button>
       <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelect" />
     </div>
-    <el-table :data="pagedList" border style="margin-top:15px">
+    <div class="table-wrap">
+    <el-table :data="pagedList" border size="small">
       <el-table-column label="编号" type="index" width="60"/>
       <el-table-column label="商品编号" prop="goodsCode"/>
       <el-table-column label="名称" prop="goodsName"/>
@@ -30,12 +31,15 @@
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
+    </div>
 
     <el-dialog v-model="show" title="商品" @close="show=false">
       <el-form :model="form">
         <el-form-item label="商品编号"><el-input v-model="form.goodsCode"/></el-form-item>
         <el-form-item label="名称"><el-input v-model="form.goodsName"/></el-form-item>
-        <el-form-item label="单价"><el-input v-model="form.price"/></el-form-item>
+        <el-form-item label="单价">
+          <el-input-number v-model="form.price" :min="0" :step="0.01" :precision="2" style="width:100%"/>
+        </el-form-item>
         <el-form-item label="供应商">
           <el-select v-model="form.supplierId" placeholder="请选择供应商">
             <el-option v-for="supplier in supplierList" :key="supplier.id" :label="supplier.supplierCode + ' - ' + supplier.supplierName" :value="supplier.id"/>
@@ -56,6 +60,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getGoodsList, addGoods, updateGoods, deleteGoods, importGoods, exportGoods } from '@/api/goods'
 import { getSupplierList } from '@/api/supplier'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
 const currentPage = ref(1)
@@ -73,11 +78,11 @@ const hasManagePermission = computed(() => {
   return role.value === '1' && (adminLevel.value === 1 || adminLevel.value === 2)
 })
 
-onMounted(() => {
+onMounted(async () => {
   role.value = localStorage.getItem('role') || ''
   adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
-  loadData()
-  loadSupplierData()
+  // 先加载供应商数据，再加载商品（避免重复请求）
+  await loadSupplierData()
 })
 
 const loadData = async () => {
@@ -97,8 +102,9 @@ const loadSupplierData = async () => {
   const res = await getSupplierList()
   if (res.code === 200) {
     supplierList.value = res.data
-    loadData()
   }
+  // 供应商数据就绪后再加载商品
+  await loadData()
 }
 
 const openAdd = () => { form.value = {}; isEdit.value = false; show.value = true }
@@ -107,21 +113,22 @@ const openEdit = (row) => { form.value = { ...row }; isEdit.value = true; show.v
 const submit = async () => {
   if (isEdit.value) {
     const res = await updateGoods(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   } else {
     const res = await addGoods(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   }
   show.value = false
   loadData()
 }
 
 const handleDelete = async (id) => {
-  if (confirm('确定删除？')) {
+  try {
+    await ElMessageBox.confirm('确定删除？', '确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
     const res = await deleteGoods(id)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
-  }
+  } catch { /* 取消 */ }
 }
 
 const handleImport = () => {
@@ -132,7 +139,7 @@ const onFileSelect = async (event) => {
   const file = event.target.files[0]
   if (file) {
     const res = await importGoods(file)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
     event.target.value = ''
   }
@@ -151,3 +158,11 @@ const handleExport = async () => {
   document.body.removeChild(a)
 }
 </script>
+
+<style scoped>
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

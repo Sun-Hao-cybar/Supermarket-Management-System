@@ -4,10 +4,10 @@
     <select id="selectAll" resultType="com.supermarket.backend.entity.Member">
         select * from member
         order by
-          case member_no
-            when 'M110001' then 1
-            when 'M100001' then 2
-            when 'M010001' then 3
+          case
+            when member_no like 'M11%' then 1
+            when member_no like 'M10%' then 2
+            when member_no like 'M01%' then 3
             else 4
           end,
           case level when 'SVIP' then 1 when 'VIP' then 2 else 3 end,
@@ -20,7 +20,7 @@
         select * from member where member_no = #{memberNo}
     </select>
     <select id="selectByPhone" resultType="com.supermarket.backend.entity.Member">
-        select * from member where phone = #{phone} or phone = replace(#{phone}, '|', '') or phone = concat(substring_index(#{phone}, '|', 1), substring_index(#{phone}, '|', -1)) limit 1
+        select * from member where phone = #{phone} limit 1
     </select>
     <insert id="insert" parameterType="com.supermarket.backend.entity.Member">
         insert into member(member_no, name, phone, level, register_time, remark)

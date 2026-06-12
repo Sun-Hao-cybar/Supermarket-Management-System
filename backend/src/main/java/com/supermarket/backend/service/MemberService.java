@@ -7,7 +7,10 @@ import com.supermarket.backend.mapper.SupplierMapper;
 import com.supermarket.backend.mapper.SysUserMapper;
 import com.supermarket.backend.util.ExcelUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -21,10 +24,12 @@ public class MemberService {
     @Autowired
     private SupplierMapper supplierMapper;
 
+    @Cacheable(value = "memberList", unless = "#result.data == null || #result.data.isEmpty()")
     public Result<List<Member>> list() {
         return Result.success(memberMapper.selectAll());
     }
 
+    @Cacheable(value = "member", key = "#id", unless = "#result.data == null")
     public Result<Member> getById(Long id) {
         return Result.success(memberMapper.selectById(id));
     }
@@ -49,6 +54,8 @@ public class MemberService {
         return Result.success(null);
     }
 
+    @Transactional
+    @CacheEvict(value = {"member", "memberList"}, allEntries = true)
     public Result<String> add(Member member) {
         Member existing = memberMapper.selectByMemberNo(member.getMemberNo());
         if (existing != null) {
@@ -58,15 +65,20 @@ public class MemberService {
         if (!phoneCheck.getCode().equals(200)) {
             return phoneCheck;
         }
-        // 会员等级默认为普通会员
+        // 会员等级默认为普通会员，只允许 SVIP/VIP/普通会员
         if (member.getLevel() == null || member.getLevel().isEmpty()) {
             member.setLevel("普通会员");
+        }
+        if (!member.getLevel().matches("^(SVIP|VIP|普通会员)$")) {
+            return Result.error("会员等级只允许 SVIP、VIP 或 普通会员");
         }
         member.setRegisterTime(new Date());
         memberMapper.insert(member);
         return Result.success("添加成功");
     }
 
+    @Transactional
+    @CacheEvict(value = {"member", "memberList"}, allEntries = true)
     public Result<String> update(Member member) {
         // 三个管理员本人的会员（M11xxx/M10xxx/M01xxx）等级不可修改
         Member existing = memberMapper.selectById(member.getId());
@@ -76,17 +88,24 @@ public class MemberService {
                 return Result.error("管理员本人的会员等级不可修改");
             }
         }
-        // 修改时仅检查本表电话不重复（编辑不拦截跨表同步）
+        // 修改时检查跨表电话唯一性
         if (member.getPhone() != null && !member.getPhone().isEmpty()) {
             Member existMember = memberMapper.selectByPhone(member.getPhone());
             if (existMember != null && !existMember.getId().equals(member.getId())) {
                 return Result.error("该电话号已在会员中使用");
+            }
+            // 跨表检查（员工和供应商联系人）
+            Result<String> crossCheck = checkPhoneUnique(member.getPhone());
+            if (!crossCheck.getCode().equals(200)) {
+                return crossCheck;
             }
         }
         memberMapper.update(member);
         return Result.success("修改成功");
     }
 
+    @Transactional
+    @CacheEvict(value = {"member", "memberList"}, allEntries = true)
     public Result<String> delete(Long id) {
         memberMapper.delete(id);
         return Result.success("删除成功");

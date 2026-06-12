@@ -16,6 +16,10 @@
         select * from purchase_detail
     </select>
 
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from purchase_detail where id = #{id}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into purchase_detail(detail_no,purchase_no,goods_id,goods_num,goods_price,total_price,remark)
         values(#{detailNo},#{purchaseNo},#{goodsId},#{goodsNum},#{goodsPrice},#{totalPrice},#{remark})
@@ -30,5 +34,9 @@
 
     <delete id="deleteById">
         delete from purchase_detail where id=#{id}
+    </delete>
+
+    <delete id="deleteByPurchaseNo">
+        delete from purchase_detail where purchase_no = #{purchaseNo}
     </delete>
 </mapper>

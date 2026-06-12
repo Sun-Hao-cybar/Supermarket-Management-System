@@ -2,8 +2,8 @@ import request from '@/utils/request'
 
 export const getPurchaseMainList = () => request.get('/purchaseMain/list')
 export const addPurchaseMain = (data) => request.post('/purchaseMain/add', data)
-export const updatePurchaseMain = (data) => request.post('/purchaseMain/update', data)
-export const deletePurchaseMain = (id) => request.get('/purchaseMain/delete', { params: { id } })
+export const updatePurchaseMain = (data, userId, adminLevel) => request.post('/purchaseMain/update', data, { params: { operatorUserId: userId, adminLevel } })
+export const deletePurchaseMain = (id, userId, adminLevel) => request.get('/purchaseMain/delete', { params: { id, operatorUserId: userId, adminLevel } })
 export const importPurchaseMain = (file) => {
   const formData = new FormData()
   formData.append('file', file)

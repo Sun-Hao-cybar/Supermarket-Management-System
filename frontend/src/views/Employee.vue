@@ -6,16 +6,21 @@
         当前身份：{{ adminType }}
       </div>
     </div>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-      <el-button type="primary" @click="openAdd" v-if="hasManagePermission">新增</el-button>
-      <el-button @click="handleImport" v-if="hasManagePermission">导入Excel</el-button>
-      <el-button @click="handleExport">导出Excel</el-button>
+    <div class="toolbar">
+      <el-button type="primary" @click="openAdd" v-if="hasManagePermission" size="small">新增</el-button>
+      <el-button @click="handleImport" v-if="hasManagePermission" size="small">导入Excel</el-button>
+      <el-button @click="handleExport" size="small">导出Excel</el-button>
       <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelect" />
     </div>
-    <el-table :data="pagedList" border style="margin-top:15px;">
+    <div class="table-wrap">
+    <el-table :data="pagedList" border size="small">
       <el-table-column label="编号" type="index" width="60"/>
       <el-table-column label="员工编号" prop="username"/>
-      <el-table-column label="姓名" prop="realName"/>
+      <el-table-column label="姓名">
+        <template #default="scope">
+          <el-button link type="primary" @click="viewDetail(scope.row)" style="text-decoration: underline">{{ scope.row.realName || '-' }}</el-button>
+        </template>
+      </el-table-column>
       <el-table-column label="电话" prop="phone"/>
       <el-table-column label="工资" prop="salary"/>
       <el-table-column label="员工级别">
@@ -30,8 +35,8 @@
       </el-table-column>
       <el-table-column label="操作" v-if="hasManagePermission">
         <template #default="scope">
-          <el-button @click="openEdit(scope.row)">编辑</el-button>
-          <el-button type="danger" @click="handleDelete(scope.row.id)">删除</el-button>
+          <el-button @click="openEdit(scope.row)" v-if="canEditRow(scope.row)">编辑</el-button>
+          <el-button type="danger" @click="handleDelete(scope.row.id)" v-if="canEditRow(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -43,6 +48,7 @@
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
+    </div>
 
     <el-dialog v-model="show" title="员工" @close="show=false">
       <el-form :model="form">
@@ -70,6 +76,14 @@
         <el-form-item label="工资">
           <el-input-number v-model="form.salary" :min="100" :step="100" placeholder="请输入工资" style="width:100%" />
         </el-form-item>
+        <el-form-item label="会员等级">
+          <el-select v-model="form.memberLevel" placeholder="请选择会员等级" clearable style="width:100%">
+            <el-option label="无（不分配会员）" value="" />
+            <el-option label="普通会员" value="普通会员" />
+            <el-option label="VIP" value="VIP" />
+            <el-option label="SVIP" value="SVIP" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="员工级别">
           <span style="color:#333">普通用户</span>
           <span style="color:#909399; font-size:12px; margin-left:8px">管理员需自行注册，此处仅可添加普通员工</span>
@@ -85,18 +99,57 @@
         <el-button type="primary" @click="submit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 员工详情弹窗 -->
+    <el-dialog v-model="detailShow" title="员工详细信息" width="520px">
+      <template v-if="detailUser">
+        <div style="text-align:center; margin-bottom:20px">
+          <el-avatar :size="72" :src="detailUser.avatar">
+            {{ detailUser.realName ? detailUser.realName.charAt(0) : '?' }}
+          </el-avatar>
+        </div>
+        <el-descriptions :column="2" border size="small">
+          <el-descriptions-item label="员工编号">{{ detailUser.username }}</el-descriptions-item>
+          <el-descriptions-item label="姓名">{{ detailUser.realName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ detailUser.gender || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="年龄">{{ detailUser.age || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="电话">{{ detailUser.phone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="工资">{{ detailUser.salary != null ? detailUser.salary : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="级别">
+            <el-tag :type="detailUser.role === 1 ? 'danger' : 'info'" size="small">
+              {{ detailUser.role === 1 ? '管理员' : '普通用户' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="会员等级">
+            <el-tag v-if="detailUser.memberLevel" :type="detailUser.memberLevel === 'SVIP' ? 'danger' : detailUser.memberLevel === 'VIP' ? 'warning' : 'info'" size="small">
+              {{ detailUser.memberLevel }}
+            </el-tag>
+            <span v-else>-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="住址" :span="2">{{ detailUser.address || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ detailUser.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">{{ detailUser.createTime || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <template #footer>
+        <el-button @click="detailShow = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getUserList, addUser, updateUser, deleteUser, importUser, exportUser } from '@/api/user'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const show = ref(false)
+const detailShow = ref(false)
+const detailUser = ref(null)
 const form = ref({ role: 0, areaCode: '+86', password: '' })
 const isEdit = ref(false)
 const fileInput = ref(null)
@@ -148,6 +201,18 @@ const hasManagePermission = computed(() => {
   return role.value === '1' && (adminLevel.value === 1 || adminLevel.value === 3)
 })
 
+const currentUserId = ref(null)
+
+// 11管理员可以编辑所有员工，01管理员只能编辑普通用户
+const canEditRow = (row) => {
+  if (adminLevel.value === 1) return true  // 一号管理员可编辑所有人
+  if (adminLevel.value === 3) {
+    // 三号管理员只能编辑普通用户(role=0)
+    return row.role === 0
+  }
+  return false
+}
+
 const usernameError = computed(() => {
   const username = form.value.username || ''
   const role = form.value.role
@@ -161,52 +226,6 @@ const usernameError = computed(() => {
     if (username.length !== 9) return '普通用户账号必须是9位'
     if (!username.startsWith('00')) return '普通用户账号必须以00开头'
   }
-  return ''
-})
-
-const hasLetter = computed(() => /[A-Za-z]/.test(form.value.password))
-const hasNumber = computed(() => /\d/.test(form.value.password))
-const hasSpecialChar = computed(() => /[@$!%*?&]/.test(form.value.password))
-
-const passwordStrength = computed(() => {
-  let strength = 0
-  if (form.value.password.length >= 8) strength++
-  if (hasLetter.value) strength++
-  if (hasNumber.value) strength++
-  if (hasSpecialChar.value) strength++
-  return Math.min(strength, 4)
-})
-
-const passwordStrengthClass = computed(() => {
-  switch (passwordStrength.value) {
-    case 0: return 'weak'
-    case 1: return 'weak'
-    case 2: return 'medium'
-    case 3: return 'strong'
-    case 4: return 'veryStrong'
-    default: return ''
-  }
-})
-
-const passwordStrengthText = computed(() => {
-  switch (passwordStrength.value) {
-    case 0: return '请输入密码'
-    case 1: return '弱'
-    case 2: return '中等'
-    case 3: return '强'
-    case 4: return '非常强'
-    default: return ''
-  }
-})
-
-const passwordError = computed(() => {
-  const pwd = form.value.password || ''
-  if (!pwd) return ''
-  if (pwd.length < 8) return '密码至少需要8位'
-  if (!/[a-z]/.test(pwd)) return '密码必须包含小写字母'
-  if (!/[A-Z]/.test(pwd)) return '密码必须包含大写字母'
-  if (!/\d/.test(pwd)) return '密码必须包含数字'
-  if (!/[@$!%*?&]/.test(pwd)) return '密码必须包含特殊字符(@$!%*?&)'
   return ''
 })
 
@@ -311,6 +330,7 @@ const truncateUsername = () => {
 onMounted(() => {
   role.value = localStorage.getItem('role') || ''
   adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
+  currentUserId.value = parseInt(localStorage.getItem('userId') || '0')
   loadData()
 })
 
@@ -338,12 +358,17 @@ const loadData = async () => {
 }
 
 const openAdd = () => {
-  form.value = { role: 0, salary: null, remark: '', username: '' }
+  form.value = { role: 0, salary: null, remark: '', username: '', memberLevel: '', areaCode: '+86', phoneNum: '' }
   isEdit.value = false
   show.value = true
 }
 
-const openEdit = (row) => { 
+const viewDetail = (row) => {
+  detailUser.value = row
+  detailShow.value = true
+}
+
+const openEdit = (row) => {
   const phone = row.phone || ''
   const phoneParts = phone.split('|')
   form.value = { 
@@ -357,18 +382,13 @@ const openEdit = (row) => {
 
 const submit = async () => {
   if (usernameError.value) {
-    alert(usernameError.value)
+    ElMessage.warning(usernameError.value)
     return
   }
 
   if (isEdit.value) {
-    // 编辑模式：需校验密码和电话
-    if (passwordError.value) {
-      alert(passwordError.value)
-      return
-    }
     if (phoneError.value) {
-      alert(phoneError.value)
+      ElMessage.warning(phoneError.value)
       return
     }
   }
@@ -380,7 +400,8 @@ const submit = async () => {
 
   const submitData = {
     ...form.value,
-    phone: phoneStr
+    phone: phoneStr,
+    memberLevel: form.value.memberLevel || null  // 空字符串转为 null
   }
 
   // 新增员工：密码和电话都留空，由员工注册时自行设置
@@ -391,21 +412,22 @@ const submit = async () => {
 
   if (isEdit.value) {
     const res = await updateUser(submitData)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   } else {
     const res = await addUser(submitData)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   }
   show.value = false
   loadData()
 }
 
 const handleDelete = async (id) => {
-  if (confirm('确定删除？')) {
+  try {
+    await ElMessageBox.confirm('确定删除？', '确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
     const res = await deleteUser(id)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
-  }
+  } catch { /* 取消 */ }
 }
 
 const handleImport = () => {
@@ -416,7 +438,7 @@ const onFileSelect = async (event) => {
   const file = event.target.files[0]
   if (file) {
     const res = await importUser(file)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
     event.target.value = ''
   }
@@ -443,62 +465,32 @@ const handleExport = async () => {
   margin-top: 5px;
 }
 
-.password-strength {
-  margin-top: 5px;
-}
-
-.strength-label {
-  font-size: 12px;
-  color: #666 !important;
-  margin-bottom: 4px;
-}
-
-.strength-bars {
-  display: flex;
-  gap: 3px;
-  margin-bottom: 4px;
-}
-
-.bar {
-  flex: 1;
-  height: 5px;
-  background: #ddd;
-  border-radius: 3px;
-  transition: all 0.3s ease;
-}
-
-.bar.weak { background: #ff4757; }
-.bar.medium { background: #ffa502; }
-.bar.strong { background: #2ed573; }
-.bar.veryStrong { background: #1dd1a1; }
-
-.strength-text {
-  font-size: 12px;
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.strength-text.weak { color: #ff4757 !important; }
-.strength-text.medium { color: #ffa502 !important; }
-.strength-text.strong { color: #2ed573 !important; }
-.strength-text.veryStrong { color: #1dd1a1 !important; }
-
-.password-hints {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 10px;
-}
-
-.password-hints div {
-  color: #999 !important;
-}
-
-.password-hints div.valid {
-  color: #2ed573 !important;
-}
-
 .phone-input {
   display: flex;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* 手机端适配 */
+@media (max-width: 767px) {
+  .toolbar .el-button {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  h3 {
+    font-size: 16px;
+  }
 }
 </style>

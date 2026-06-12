@@ -59,9 +59,15 @@
       <el-form-item label="身份">
         <el-tag>{{ role === '1' ? (user.username ? user.username.substring(0,2) : '') + '管理员' : '普通用户' }}</el-tag>
       </el-form-item>
-      <el-form-item label="会员等级" v-if="memberLevel">
-        <el-tag :type="memberLevel === 'SVIP' ? 'danger' : memberLevel === 'VIP' ? 'warning' : 'info'">{{ memberLevel }}</el-tag>
-        <span style="color:#909399;font-size:12px;margin-left:8px">会员等级不可修改</span>
+      <el-form-item label="会员等级">
+        <template v-if="memberLevel">
+          <el-tag :type="memberLevel === 'SVIP' ? 'danger' : memberLevel === 'VIP' ? 'warning' : 'info'">
+            {{ role === '1' ? memberLevel : '员工' + memberLevel }}
+          </el-tag>
+          <span style="color:#909399;font-size:12px;margin-left:8px">会员等级不可修改</span>
+        </template>
+        <span v-else style="color:#C0C4CC">无</span>
+        <span v-if="!memberLevel" style="color:#909399;font-size:12px;margin-left:8px">管理员未分配会员身份</span>
       </el-form-item>
 
       <el-divider>修改密码（选填）</el-divider>
@@ -87,6 +93,7 @@ import { ref, onMounted, watch } from 'vue'
 import { getUserById, updateProfile } from '@/api/user'
 import { getMemberList as apiGetMemberList } from '@/api/member'
 import { regionData } from 'element-china-area-data'
+import { ElMessage } from 'element-plus'
 
 const role = ref(localStorage.getItem('role') || '')
 const user = ref({})
@@ -130,6 +137,23 @@ watch(addressDetail, (val) => {
   }
 })
 
+// 监听区域选择/手动模式切换
+watch(useRegionPicker, (newVal) => {
+  if (newVal) {
+    // 切换到区域选择模式：保留已有手动输入作为详细地址
+    if (form.value.address && form.value.address.trim()) {
+      addressDetail.value = form.value.address.trim()
+      form.value.address = ''
+    }
+  } else {
+    // 切换到手动模式：将区域选择结果转为文字填入
+    if (selectedRegion.value.length > 0) {
+      const labels = getRegionLabels(selectedRegion.value)
+      form.value.address = labels.join(' ') + (addressDetail.value ? ' ' + addressDetail.value : '')
+    }
+  }
+})
+
 const loadUserInfo = async () => {
   const userId = localStorage.getItem('userId')
   if (userId) {
@@ -158,12 +182,20 @@ const loadUserInfo = async () => {
 }
 
 const triggerUpload = () => {
-  avatarInput.value.click()
+  if (avatarInput.value) {
+    avatarInput.value.click()
+  }
 }
 
 const onAvatarSelect = (event) => {
   const file = event.target.files[0]
   if (!file) return
+  // 限制头像文件大小 2MB
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('头像图片大小不能超过 2MB')
+    event.target.value = ''
+    return
+  }
   const reader = new FileReader()
   reader.onload = (e) => {
     avatarUrl.value = e.target.result
@@ -174,11 +206,15 @@ const onAvatarSelect = (event) => {
 
 const submit = async () => {
   if (newPassword.value && newPassword.value !== confirmPassword.value) {
-    alert('两次输入的新密码不一致')
+    ElMessage.warning('两次输入的新密码不一致')
     return
   }
   if (newPassword.value && !oldPassword.value) {
-    alert('修改密码需要输入旧密码')
+    ElMessage.warning('修改密码需要输入旧密码')
+    return
+  }
+  if (form.value.age != null && (form.value.age < 18 || form.value.age > 66)) {
+    ElMessage.warning('年龄不符合公司规定，请重新输入')
     return
   }
 
@@ -190,7 +226,7 @@ const submit = async () => {
 
   const userId = localStorage.getItem('userId')
   const res = await updateProfile(submitData, userId, oldPassword.value || '', confirmPassword.value || '')
-  alert(res.msg)
+  ElMessage.info(res.msg)
   if (res.code === 200) {
     // 同步头像到 localStorage，使右上角头像即时更新
     if (avatarUrl.value) {

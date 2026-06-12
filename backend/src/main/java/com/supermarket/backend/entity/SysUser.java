@@ -18,5 +18,6 @@ public class SysUser {
     private String gender;      // 性别
     private Integer age;        // 年龄
     private String address;     // 住址
+    private String memberLevel; // 会员等级（VIP/SVIP/普通会员，管理员设定）
     private Date createTime;
 }

@@ -9,6 +9,7 @@ public interface SysUserMapper {
     List<SysUser> selectAll();
     SysUser selectByUsername(String username);
     SysUser selectById(Long id);
+    SysUser selectByPhone(String phone);
     int insert(SysUser sysUser);
     int update(SysUser sysUser);
     int delete(Long id);

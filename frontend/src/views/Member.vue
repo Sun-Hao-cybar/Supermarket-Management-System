@@ -5,7 +5,8 @@
       <el-button type="primary" @click="openAdd">新增</el-button>
       <el-button @click="handleExport">导出Excel</el-button>
     </div>
-    <el-table :data="pagedList" border style="margin-top:15px">
+    <div class="table-wrap">
+    <el-table :data="pagedList" border size="small">
       <el-table-column label="编号" type="index" width="60"/>
       <el-table-column label="会员编号" prop="memberNo"/>
       <el-table-column label="姓名" prop="name"/>
@@ -17,7 +18,7 @@
       <el-table-column label="会员等级">
         <template #default="scope">
           <el-tag :type="scope.row.level === 'SVIP' ? 'danger' : scope.row.level === 'VIP' ? 'warning' : 'info'" size="small">
-            {{ scope.row.level || '普通会员' }}
+            {{ isEmployeeMember(scope.row) && scope.row.level ? '员工' + scope.row.level : (scope.row.level || '普通会员') }}
           </el-tag>
         </template>
       </el-table-column>
@@ -38,6 +39,7 @@
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
+    </div>
 
     <el-dialog v-model="show" title="会员" @close="show=false">
       <el-form :model="form">
@@ -59,7 +61,7 @@
             <el-option label="VIP" value="VIP"/>
             <el-option label="SVIP" value="SVIP"/>
           </el-select>
-          <span v-if="!canChangeLevel && isEdit && isAdminMember(form)" style="color:#909399; font-size:12px; margin-left:8px">管理员本人会员等级不可修改</span>
+          <span v-if="!canChangeLevel && isEdit" style="color:#909399; font-size:12px; margin-left:8px">您无权修改此会员等级</span>
         </el-form-item>
         <el-form-item label="注册时间">
           <el-date-picker v-model="form.registerTime" type="datetime" placeholder="请选择日期时间" value-format="YYYY-MM-DD HH:mm"/>
@@ -88,17 +90,29 @@ const isEdit = ref(false)
 const role = ref('')
 const adminLevel = ref(0)
 
-// 三个管理员会员（M11xxx/M10xxx/M01xxx）的等级不可修改，其他会员等级可由管理员修改
-const isAdminMember = (member) => {
+// 根据管理员层级判断是否可修改会员等级
+const isEmployeeMember = (member) => {
   if (!member || !member.memberNo) return false
-  return /^M(11|10|01)/.test(member.memberNo)
+  return /^M00/.test(member.memberNo)
 }
 
 const canChangeLevel = computed(() => {
   if (!isEdit.value) return true  // 新增时可以选等级
-  if (role.value !== '1') return false  // 非管理员不能改
-  if (isAdminMember(form.value)) return false  // 三个管理员本人的会员等级不可改
-  return true
+  if (role.value !== '1') return false
+  const memberNo = form.value.memberNo || ''
+  if (adminLevel.value === 1) {
+    // 11 管理员：不可修改自己（M11xxx）
+    return !/^M11/.test(memberNo)
+  }
+  if (adminLevel.value === 2) {
+    // 10 管理员：不可修改 11、自己（M10xxx）、01
+    return !/^M(11|10|01)/.test(memberNo)
+  }
+  if (adminLevel.value === 3) {
+    // 01 管理员：不可修改 11、10、自己（M01xxx）
+    return !/^M(11|10|01)/.test(memberNo)
+  }
+  return false
 })
 
 const phoneCodeOptions = [
@@ -274,3 +288,11 @@ role.value = localStorage.getItem('role') || ''
 adminLevel.value = parseInt(localStorage.getItem('adminLevel') || '0')
 loadData()
 </script>
+
+<style scoped>
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

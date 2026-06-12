@@ -7,6 +7,7 @@ import java.util.List;
 @Mapper
 public interface PurchaseMainMapper {
     List<PurchaseMain> selectAll();
+    PurchaseMain selectById(Long id);
     int insert(PurchaseMain purchaseMain);
     int update(PurchaseMain purchaseMain);
     int deleteById(Long id);

@@ -7,17 +7,19 @@
     @touchstart.prevent="onTouchStart"
     @dblclick="resetPosition"
   >
-    <!-- 视频播放小猫 -->
-    <video
-      ref="videoRef"
-      class="cat-video"
-      src="/cat-agent.mp4"
-      autoplay
-      loop
-      muted
-      playsinline
-      preload="auto"
-    ></video>
+    <!-- 视频播放小猫（内层 clip 裁剪圆形） -->
+    <div class="cat-video-clip">
+      <video
+        ref="videoRef"
+        class="cat-video"
+        src="/cat-agent.mp4"
+        autoplay
+        loop
+        muted
+        playsinline
+        preload="auto"
+      ></video>
+    </div>
 
     <!-- 状态气泡 -->
     <transition name="bubble-fade">
@@ -256,17 +258,25 @@ onUnmounted(() => {
   70% { transform: translateY(-8px) scale(0.95); }
 }
 
+/* 视频裁剪容器 — 确保完美圆形无黑边 */
+.cat-video-clip {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  /* 柔边遮罩融合白底 */
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.85),
+    0 0 20px 8px rgba(255, 240, 220, 0.5),
+    0 4px 16px rgba(180, 130, 80, 0.15);
+}
+
 /* 视频播放 */
 .cat-video {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
-  /* 柔边遮罩融合白底 */
-  box-shadow:
-    0 0 0 6px rgba(255, 255, 255, 0.75),
-    0 0 20px 8px rgba(255, 240, 220, 0.5),
-    0 4px 16px rgba(180, 130, 80, 0.15);
+  display: block;
   animation: catBreathe 4s ease-in-out infinite;
 }
 

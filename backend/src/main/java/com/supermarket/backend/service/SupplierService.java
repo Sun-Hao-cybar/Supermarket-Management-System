@@ -6,7 +6,10 @@ import com.supermarket.backend.mapper.MemberMapper;
 import com.supermarket.backend.mapper.SupplierMapper;
 import com.supermarket.backend.mapper.SysUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
@@ -19,6 +22,7 @@ public class SupplierService {
     @Autowired
     private MemberMapper memberMapper;
 
+    @Cacheable(value = "supplierList", unless = "#result.data == null || #result.data.isEmpty()")
     public Result<List<Supplier>> list() {
         return Result.success(supplierMapper.selectAll());
     }
@@ -42,6 +46,8 @@ public class SupplierService {
         return Result.success(null);
     }
 
+    @Transactional
+    @CacheEvict(value = "supplierList", allEntries = true)
     public Result<String> add(Supplier supplier) {
         Result<String> phoneCheck = checkContactPhoneUnique(supplier.getContactPhone());
         if (!phoneCheck.getCode().equals(200)) {
@@ -51,19 +57,28 @@ public class SupplierService {
         return Result.success("添加成功");
     }
 
+    @Transactional
+    @CacheEvict(value = "supplierList", allEntries = true)
     public Result<String> update(Supplier supplier) {
-        // 修改时仅检查本表联系人电话不重复
+        // 修改时检查跨表电话唯一性
         if (supplier.getContactPhone() != null && !supplier.getContactPhone().isEmpty()) {
             com.supermarket.backend.entity.Supplier existSupplier =
                 supplierMapper.selectByContactPhone(supplier.getContactPhone());
             if (existSupplier != null && !existSupplier.getId().equals(supplier.getId())) {
                 return Result.error("该联系人电话已在供应商中使用");
             }
+            // 跨表检查
+            Result<String> crossCheck = checkContactPhoneUnique(supplier.getContactPhone());
+            if (!crossCheck.getCode().equals(200)) {
+                return crossCheck;
+            }
         }
         supplierMapper.update(supplier);
         return Result.success("修改成功");
     }
 
+    @Transactional
+    @CacheEvict(value = "supplierList", allEntries = true)
     public Result<String> delete(Long id) {
         supplierMapper.deleteById(id);
         return Result.success("删除成功");

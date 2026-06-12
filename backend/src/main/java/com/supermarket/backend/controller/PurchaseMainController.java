@@ -38,13 +38,17 @@ public class PurchaseMainController {
     }
 
     @PostMapping("/update")
-    public Result<String> update(@RequestBody PurchaseMain main){
-        return purchaseMainService.update(main);
+    public Result<String> update(@RequestBody PurchaseMain main,
+            @RequestParam(required = false) Long operatorUserId,
+            @RequestParam(required = false) Integer adminLevel){
+        return purchaseMainService.update(main, operatorUserId, adminLevel);
     }
 
     @GetMapping("/delete")
-    public Result<String> delete(@RequestParam Long id){
-        return purchaseMainService.delete(id);
+    public Result<String> delete(@RequestParam Long id,
+            @RequestParam(required = false) Long operatorUserId,
+            @RequestParam(required = false) Integer adminLevel){
+        return purchaseMainService.delete(id, operatorUserId, adminLevel);
     }
 
     @PostMapping("/import")

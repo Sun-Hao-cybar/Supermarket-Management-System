@@ -5,6 +5,7 @@ const routes = [
   {
     path: '/layout',
     component: () => import('@/views/Layout.vue'),
+    meta: { requiresAuth: true },
     children: [
       { path: 'user-info', component: () => import('@/views/UserInfo.vue') },
       { path: 'goods', component: () => import('@/views/Goods.vue') },
@@ -13,12 +14,26 @@ const routes = [
       { path: 'employee', component: () => import('@/views/Employee.vue') },
       { path: 'member', component: () => import('@/views/Member.vue') },
     ]
-  }
+  },
+  // 404 兜底
+  { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// 路由守卫：未登录重定向到登录页
+router.beforeEach((to, from, next) => {
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    const userId = localStorage.getItem('userId')
+    if (!userId) {
+      next('/')
+      return
+    }
+  }
+  next()
 })
 
 export default router

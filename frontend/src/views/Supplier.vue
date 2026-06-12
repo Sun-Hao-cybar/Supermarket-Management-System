@@ -7,7 +7,8 @@
       <el-button @click="handleExport">导出Excel</el-button>
       <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelect" />
     </div>
-    <el-table :data="pagedList" border style="margin-top:15px">
+    <div class="table-wrap">
+    <el-table :data="pagedList" border size="small">
       <el-table-column label="编号" type="index" width="60"/>
       <el-table-column label="供应商编号" prop="supplierCode"/>
       <el-table-column label="名称" prop="supplierName"/>
@@ -37,6 +38,7 @@
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
+    </div>
 
     <el-dialog v-model="show" title="供应商" @close="show=false">
       <el-form :model="form" :rules="rules" ref="formRef">
@@ -68,8 +70,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getSupplierList, addSupplier, updateSupplier, deleteSupplier, importSupplier, exportSupplier } from '@/api/supplier'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
 const currentPage = ref(1)
@@ -153,34 +156,34 @@ onMounted(() => {
   loadData()
 })
 
-watch(() => form.value.contactPhoneCode, (newVal) => {
-  if (newVal && form.value.contactPhoneNum) {
-    validatePhone()
-  }
-})
-
 const validatePhone = () => {
   const selected = phoneCodeOptions.find(item => item.code === form.value.contactPhoneCode)
   const phoneNum = form.value.contactPhoneNum
-  
+
   if (!selected || !phoneNum) return true
-  
+
   const phoneRegex = /^[0-9]+$/
   if (!phoneRegex.test(phoneNum)) {
-    alert('电话号码只能包含数字')
+    ElMessage.warning('电话号码只能包含数字')
     return false
   }
-  
-  if (phoneNum.length !== selected.length) {
-    alert(`${selected.label.split(' ')[1]}的电话号码必须是${selected.length}位`)
+
+  // 支持范围长度的国家（如日本10-11位）
+  const phoneLengths = selected.length.toString().includes('-')
+    ? selected.length.split('-').map(Number)
+    : [selected.length]
+  const minLen = phoneLengths[0]
+  const maxLen = phoneLengths[phoneLengths.length - 1] || minLen
+  if (phoneNum.length < minLen || phoneNum.length > maxLen) {
+    ElMessage.warning(`${selected.label.split(' ')[1]}的电话号码必须是${selected.length}位`)
     return false
   }
-  
+
   if (!selected.pattern.test(phoneNum)) {
-    alert(`${selected.label.split(' ')[1]}的电话号码必须以${selected.pattern.source.replace(/[\^\/]/g, '')}开头`)
+    ElMessage.warning(`${selected.label.split(' ')[1]}的电话号码开头不符合规则`)
     return false
   }
-  
+
   return true
 }
 
@@ -213,10 +216,10 @@ const loadData = async () => {
   }
 }
 
-const openAdd = () => { 
-  form.value = { contactPhoneCode: '+86', contactPhoneNum: '' }
+const openAdd = () => {
+  form.value = { contactPhoneCode: '+86', contactPhoneNum: '', supplierCode: '', supplierName: '', shortName: '', address: '', phone: '', email: '', contactPerson: '', remark: '' }
   isEdit.value = false
-  show.value = true 
+  show.value = true
 }
 
 const openEdit = (row) => { 
@@ -235,28 +238,36 @@ const openEdit = (row) => {
 
 const submit = async () => {
   if (!validatePhone()) return
-  
+
+  // 执行表单校验（如邮箱格式）
+  try {
+    await formRef.value.validate()
+  } catch {
+    return // 校验不通过
+  }
+
   if (form.value.contactPhoneCode && form.value.contactPhoneNum) {
     form.value.contactPhone = form.value.contactPhoneCode + '|' + form.value.contactPhoneNum
   }
-  
+
   if (isEdit.value) {
     const res = await updateSupplier(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   } else {
     const res = await addSupplier(form.value)
-    alert(res.msg)
+    ElMessage.info(res.msg)
   }
   show.value = false
   loadData()
 }
 
 const handleDelete = async (id) => {
-  if (confirm('确定删除？')) {
+  try {
+    await ElMessageBox.confirm('确定删除？', '确认', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
     const res = await deleteSupplier(id)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
-  }
+  } catch { /* 取消 */ }
 }
 
 const handleImport = () => {
@@ -267,7 +278,7 @@ const onFileSelect = async (event) => {
   const file = event.target.files[0]
   if (file) {
     const res = await importSupplier(file)
-    alert(res.msg)
+    ElMessage.info(res.msg)
     loadData()
     event.target.value = ''
   }
@@ -286,3 +297,11 @@ const handleExport = async () => {
   document.body.removeChild(a)
 }
 </script>
+
+<style scoped>
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

@@ -1,6 +1,7 @@
 package com.supermarket.backend.controller;
 
 import com.supermarket.backend.common.Result;
+import com.supermarket.backend.entity.CaptchaVO;
 import com.supermarket.backend.entity.SysUser;
 import com.supermarket.backend.service.SysUserService;
 import com.supermarket.backend.util.ExcelUtil;
@@ -40,12 +41,15 @@ public class SysUserController {
     }
 
     @PostMapping("/login")
-    public Result<SysUser> login(@RequestParam String username, @RequestParam String password) {
-        SysUser user = sysUserService.login(username, password);
+    public Result<SysUser> login(@RequestParam String username, @RequestParam String password,
+                                  @RequestParam(required = false) String captchaId,
+                                  @RequestParam(required = false) String captchaAnswer) {
+        SysUser user = sysUserService.login(username, password, captchaId, captchaAnswer);
         if (user != null) {
             return Result.success(user);
         }
-        return Result.error("用户名或密码错误");
+        String reason = sysUserService.getLoginFailedReason();
+        return Result.error(reason != null ? reason : "用户名或密码错误");
     }
 
     @PostMapping("/register")
@@ -101,6 +105,29 @@ public class SysUserController {
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }
+    }
+
+    // ==================== CAPTCHA ====================
+
+    @GetMapping("/captcha")
+    public Result<CaptchaVO> captcha() {
+        return Result.success(sysUserService.generateCaptcha());
+    }
+
+    // ==================== 密码找回 ====================
+
+    @PostMapping("/sendResetCode")
+    public Result<String> sendResetCode(@RequestParam String phone,
+                                         @RequestParam(required = false) String captchaId,
+                                         @RequestParam(required = false) String captchaAnswer) {
+        return sysUserService.sendResetCode(phone, captchaId, captchaAnswer);
+    }
+
+    @PostMapping("/resetPassword")
+    public Result<String> resetPassword(@RequestParam String phone,
+                                         @RequestParam String code,
+                                         @RequestParam String newPassword) {
+        return sysUserService.resetPassword(phone, code, newPassword);
     }
 
     @GetMapping("/export")

@@ -4,8 +4,16 @@ html, body {
   box-sizing: border-box;
   font-family: 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
-  background: url('/web-background.png') no-repeat center center fixed;
+  /* 原图背景 + 超慢速 Ken Burns 缩放 */
+  background: url('/web-background.jpg') no-repeat center center fixed;
   background-size: cover;
+  animation: bgKenBurns 40s ease-in-out infinite alternate;
+}
+
+@keyframes bgKenBurns {
+  0%   { background-size: 105% auto; background-position: 48% 48%; }
+  50%  { background-size: 112% auto; background-position: 52% 50%; }
+  100% { background-size: 108% auto; background-position: 50% 52%; }
 }
 
 * {
@@ -17,64 +25,54 @@ html, body {
   background: transparent;
 }
 
-.el-main {
-  background: rgba(255, 255, 255, 0.95);
-  min-height: 100vh;
-}
-
-.el-aside {
-  background: rgba(47, 64, 80, 0.95) !important;
-}
-
-.el-menu {
-  background: transparent !important;
-}
-
-.el-menu-item {
-  color: #fff !important;
-}
-
-.el-menu-item:hover,
-.el-menu-item.is-active {
-  background: rgba(64, 158, 255, 0.3) !important;
-}
-
+/* 表格和弹窗保持不透明，确保可读性 */
 .el-table {
-  background: rgba(255, 255, 255, 0.98) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .el-dialog {
   background: rgba(255, 255, 255, 0.98) !important;
+  border-radius: 12px;
 }
 
-.el-form-item__label {
-  color: #333 !important;
+/* 文字颜色 - 暖棕色系 */
+.el-form-item__label { color: #5a3e28 !important; }
+.el-input__inner { color: #4a3522 !important; }
+
+h1, h2, h3, h4, h5, h6 { color: #5a3e28 !important; }
+
+.el-table__cell { color: #4a3522 !important; }
+.el-tabs__item { color: #6b4d34 !important; }
+.el-radio__label { color: #5a3e28 !important; }
+
+/* 按钮主色改为暖橙 */
+.el-button--primary {
+  --el-button-bg-color: #d4843b;
+  --el-button-border-color: #d4843b;
+  --el-button-hover-bg-color: #c0752e;
+  --el-button-hover-border-color: #c0752e;
+  --el-button-active-bg-color: #b06620;
+  --el-button-active-border-color: #b06620;
 }
 
-.el-input__inner {
-  color: #333 !important;
+/* 分页激活色 */
+.el-pagination .el-pager li.is-active {
+  background-color: #d4843b !important;
+}
+.el-pagination .el-pager li:hover {
+  color: #d4843b !important;
 }
 
-.el-button {
-  color: #333 !important;
-}
+/* 标签页激活色 */
+.el-tabs__active-bar { background-color: #d4843b !important; }
+.el-tabs__item:hover { color: #d4843b !important; }
+.el-tabs__item.is-active { color: #d4843b !important; }
 
-h1, h2, h3, h4, h5, h6 {
-  color: #333 !important;
-}
-
-p, span, div {
-  color: #333 !important;
-}
-
-.el-table__cell {
-  color: #333 !important;
-}
-
-.el-tabs__item {
-  color: #333 !important;
-}
-
-.el-radio__label {
-  color: #333 !important;
+/* 输入框聚焦色 */
+.el-input__inner:focus,
+.el-textarea__inner:focus {
+  border-color: #d4843b !important;
+  box-shadow: 0 0 0 1px rgba(212, 132, 59, 0.2) !important;
 }

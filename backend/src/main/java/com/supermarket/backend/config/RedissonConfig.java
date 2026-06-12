@@ -1,0 +1,34 @@
+package com.supermarket.backend.config;
+
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@ConditionalOnProperty(name = "spring.data.redis.host")
+public class RedissonConfig {
+
+    @Value("${spring.data.redis.host:localhost}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port:6379}")
+    private int redisPort;
+
+    @Bean(destroyMethod = "shutdown")
+    public RedissonClient redissonClient() {
+        Config config = new Config();
+        config.useSingleServer()
+                .setAddress("redis://" + redisHost + ":" + redisPort)
+                .setConnectionPoolSize(16)
+                .setConnectionMinimumIdleSize(4)
+                .setConnectTimeout(3000)
+                .setTimeout(3000)
+                .setRetryAttempts(3)
+                .setRetryInterval(1000);
+        return Redisson.create(config);
+    }
+}
