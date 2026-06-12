@@ -5,9 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.supermarket.backend.config.AgentConfig;
 import com.supermarket.backend.dto.ChatRequest;
 import com.supermarket.backend.dto.ChatResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -17,6 +20,8 @@ public class AgentService {
 
     @Autowired
     private AgentConfig agentConfig;
+
+    private static final Logger log = LoggerFactory.getLogger(AgentService.class);
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -72,12 +77,20 @@ public class AgentService {
 
             // 解析响应
             JsonNode root = objectMapper.readTree(resp.getBody());
-            String content = root.path("choices").get(0)
-                .path("message").path("content").asText();
-
-            response.setReply(content);
+            JsonNode choices = root.get("choices");
+            if (choices != null && choices.isArray() && choices.size() > 0) {
+                String content = choices.get(0).path("message").path("content").asText();
+                response.setReply(content != null && !content.isEmpty() ? content : "喵~ AI 返回了空内容，请换个问题试试~");
+            } else {
+                log.error("DeepSeek API response missing choices array: {}", resp.getBody());
+                response.setReply("喵~ 抱歉，AI 服务返回格式异常，请稍后再试~");
+            }
+        } catch (HttpClientErrorException e) {
+            log.error("DeepSeek API returned error status: {} {}", e.getStatusCode(), e.getStatusText());
+            response.setReply("喵~ 抱歉，AI 服务暂时不可用，请稍后再试~");
         } catch (Exception e) {
-            response.setReply("喵~ 抱歉，AI 服务暂时不可用，请稍后再试~ (" + e.getMessage() + ")");
+            log.error("DeepSeek API call failed", e);
+            response.setReply("喵~ 抱歉，AI 服务暂时不可用，请稍后再试~");
         }
         return response;
     }
