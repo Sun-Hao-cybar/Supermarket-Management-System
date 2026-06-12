@@ -312,6 +312,7 @@ export function matchKnowledge(message) {
   }
 
   return null
+}
 
 /**
  * 获取所有快捷问题（用于对话面板的快捷标签）
