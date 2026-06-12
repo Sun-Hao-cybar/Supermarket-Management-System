@@ -2,6 +2,14 @@
   <div class="p-4">
     <h3>供应商管理</h3>
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+      <el-input
+        v-model="searchText"
+        placeholder="搜索供应商名称 / 编码 / 联系人..."
+        clearable
+        size="small"
+        style="width: 240px; margin-right: 8px"
+        @input="currentPage = 1"
+      />
       <el-button type="primary" @click="openAdd" v-if="hasManagePermission">新增</el-button>
       <el-button @click="handleImport" v-if="hasManagePermission">导入Excel</el-button>
       <el-button @click="handleExport">导出Excel</el-button>
@@ -34,7 +42,7 @@
       v-if="list.length > pageSize"
       v-model:current-page="currentPage"
       :page-size="pageSize"
-      :total="list.length"
+      :total="filteredList.length"
       layout="prev, pager, next"
       style="margin-top:15px; justify-content:center"
     />
@@ -75,9 +83,19 @@ import { getSupplierList, addSupplier, updateSupplier, deleteSupplier, importSup
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
+const searchText = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
-const pagedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
+const filteredList = computed(() => {
+  const kw = searchText.value.trim().toLowerCase()
+  if (!kw) return list.value
+  return list.value.filter(row =>
+    (row.supplierName && row.supplierName.toLowerCase().includes(kw)) ||
+    (row.supplierCode && row.supplierCode.toLowerCase().includes(kw)) ||
+    (row.contactPerson && row.contactPerson.toLowerCase().includes(kw))
+  )
+})
+const pagedList = computed(() => filteredList.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value))
 const show = ref(false)
 const form = ref({})
 const isEdit = ref(false)
