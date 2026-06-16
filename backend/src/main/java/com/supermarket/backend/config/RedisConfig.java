@@ -1,7 +1,7 @@
 package com.supermarket.backend.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.cache.support.CompositeCacheManager;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.Arrays;
 
 @Configuration
-@EnableCaching
+@ConditionalOnProperty(name = "spring.data.redis.host")
 public class RedisConfig {
 
     @Bean

@@ -125,15 +125,19 @@ const openAdd = () => { form.value = {}; isEdit.value = false; show.value = true
 const openEdit = (row) => { form.value = { ...row }; isEdit.value = true; show.value = true }
 
 const submit = async () => {
+  let res
   if (isEdit.value) {
-    const res = await updateGoods(form.value)
-    ElMessage.info(res.msg)
+    res = await updateGoods(form.value)
   } else {
-    const res = await addGoods(form.value)
-    ElMessage.info(res.msg)
+    res = await addGoods(form.value)
   }
-  show.value = false
-  loadData()
+  if (res.code === 200) {
+    ElMessage.success(res.msg)
+    show.value = false
+    loadData()
+  } else {
+    ElMessage.warning(res.msg)
+  }
 }
 
 const handleDelete = async (id) => {

@@ -2,6 +2,8 @@ package com.supermarket.backend.controller;
 
 import com.supermarket.backend.common.Result;
 import com.supermarket.backend.entity.PurchaseMain;
+import com.supermarket.backend.entity.SysUser;
+import com.supermarket.backend.mapper.SysUserMapper;
 import com.supermarket.backend.service.PurchaseMainService;
 import com.supermarket.backend.util.ExcelUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,8 @@ import java.util.Map;
 public class PurchaseMainController {
     @Autowired
     private PurchaseMainService purchaseMainService;
+    @Autowired
+    private SysUserMapper sysUserMapper;
 
     @GetMapping("/list")
     public Result<List<PurchaseMain>> list(){
@@ -54,34 +58,52 @@ public class PurchaseMainController {
     @PostMapping("/import")
     public Result<String> importExcel(@RequestParam("file") MultipartFile file) {
         try {
-            String[] headers = {"purchaseNo", "userId", "totalNum", "totalPrice", "purchaseTime", "remark"};
+            String[] headers = {"purchaseNo", "userName", "totalNum", "totalPrice", "purchaseTime", "remark"};
             List<Map<String, Object>> dataList = ExcelUtil.importExcel(file.getInputStream(), headers);
-            
-            for (Map<String, Object> data : dataList) {
-                PurchaseMain main = new PurchaseMain();
-                main.setPurchaseNo(String.valueOf(data.get("purchaseNo")));
-                if (data.get("userId") != null) {
-                    main.setUserId(((Number) data.get("userId")).longValue());
-                }
-                if (data.get("totalNum") != null) {
-                    main.setTotalNum(((Number) data.get("totalNum")).intValue());
-                }
-                if (data.get("totalPrice") != null) {
-                    main.setTotalPrice(new BigDecimal(String.valueOf(data.get("totalPrice"))));
-                }
-                if (data.get("purchaseTime") != null) {
-                    String timeStr = String.valueOf(data.get("purchaseTime"));
-                    try {
-                        LocalDateTime dateTime = LocalDateTime.parse(timeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                        main.setPurchaseTime(java.sql.Timestamp.valueOf(dateTime));
-                    } catch (Exception e) {
-                        main.setPurchaseTime(new Date());
+
+            int successCount = 0;
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> data = dataList.get(i);
+                int rowNum = i + 2;
+                try {
+                    PurchaseMain main = new PurchaseMain();
+                    main.setPurchaseNo(ExcelUtil.getString(data, "purchaseNo"));
+                    // 支持员工编号（username）或数字ID
+                    String userNameVal = ExcelUtil.getString(data, "userName");
+                    if (!userNameVal.isEmpty()) {
+                        SysUser user = sysUserMapper.selectByUsername(userNameVal);
+                        if (user != null) {
+                            main.setUserId(user.getId());
+                        } else {
+                            try {
+                                main.setUserId(Long.parseLong(userNameVal));
+                            } catch (NumberFormatException e) {
+                                return Result.error("第" + rowNum + "行：员工编号不存在");
+                            }
+                        }
                     }
+                    if (data.get("totalNum") != null) {
+                        main.setTotalNum(((Number) data.get("totalNum")).intValue());
+                    }
+                    if (data.get("totalPrice") != null) {
+                        main.setTotalPrice(new BigDecimal(String.valueOf(data.get("totalPrice"))));
+                    }
+                    if (data.get("purchaseTime") != null) {
+                        java.util.Date pt = ExcelUtil.getDate(data, "purchaseTime");
+                        main.setPurchaseTime(pt != null ? pt : new Date());
+                    }
+                    main.setRemark(ExcelUtil.getString(data, "remark"));
+                    Result<String> res = purchaseMainService.add(main);
+                    if (res.getCode() == 200) {
+                        successCount++;
+                    } else {
+                        return Result.error("第" + rowNum + "行导入失败：" + res.getMsg());
+                    }
+                } catch (Exception e) {
+                    return Result.error("第" + rowNum + "行导入失败：" + e.getMessage());
                 }
-                main.setRemark(String.valueOf(data.get("remark")));
-                purchaseMainService.add(main);
             }
-            return Result.success("导入成功，共导入 " + dataList.size() + " 条数据");
+            return Result.success("导入成功，共导入 " + successCount + " 条数据");
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }
@@ -94,7 +116,7 @@ public class PurchaseMainController {
             List<PurchaseMain> dataList = result.getData();
             
             String[] headers = {"采购清单号", "员工编号", "采购数量", "采购总价", "采购时间", "备注"};
-            String[] fieldNames = {"purchaseNo", "userId", "totalNum", "totalPrice", "purchaseTime", "remark"};
+            String[] fieldNames = {"purchaseNo", "userName", "totalNum", "totalPrice", "purchaseTime", "remark"};
             
             byte[] excelData = ExcelUtil.exportExcel(headers, fieldNames, dataList);
             

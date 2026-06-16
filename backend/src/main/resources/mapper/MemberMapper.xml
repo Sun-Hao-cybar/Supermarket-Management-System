@@ -11,7 +11,7 @@
             else 4
           end,
           case level when 'SVIP' then 1 when 'VIP' then 2 else 3 end,
-          id asc
+          register_time asc
     </select>
     <select id="selectById" resultType="com.supermarket.backend.entity.Member">
         select * from member where id = #{id}

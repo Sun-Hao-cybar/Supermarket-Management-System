@@ -97,13 +97,59 @@ public class ExcelUtil {
         }
 
         for (int i = 0; i < headers.length; i++) {
+            // 中文字符约占2个英文字符宽度，2.5倍系数 + 4字符边距确保完整显示
+            int cjkWidth = (int) (headers[i].length() * 2.5 * 256) + 1024;
             sheet.autoSizeColumn(i);
+            int autoWidth = sheet.getColumnWidth(i);
+            sheet.setColumnWidth(i, Math.max(autoWidth, cjkWidth));
         }
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         workbook.write(outputStream);
         workbook.close();
         return outputStream.toByteArray();
+    }
+
+    /**
+     * 从 map 中安全获取字符串值，null 返回空字符串而非 "null"
+     */
+    public static String getString(Map<String, Object> data, String key) {
+        Object val = data.get(key);
+        return val != null ? String.valueOf(val) : "";
+    }
+
+    /**
+     * 从 map 中安全获取日期值。
+     * Excel 日期可能以 LocalDateTime/Date/Number(序列号)/String 多种形式存在。
+     */
+    public static java.util.Date getDate(Map<String, Object> data, String key) {
+        Object val = data.get(key);
+        if (val == null) return null;
+        // POI 日期格式单元格直接返回 LocalDateTime
+        if (val instanceof java.time.LocalDateTime) {
+            return java.sql.Timestamp.valueOf((java.time.LocalDateTime) val);
+        }
+        if (val instanceof java.util.Date) {
+            return (java.util.Date) val;
+        }
+        // Excel 日期序列号（如 45800 → 2026-06-15）
+        if (val instanceof Number) {
+            return org.apache.poi.ss.usermodel.DateUtil.getJavaDate(((Number) val).doubleValue());
+        }
+        // 字符串格式尝试解析
+        String str = val.toString().trim();
+        if (str.isEmpty()) return null;
+        String[] patterns = {
+            "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+            "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyy/MM/dd",
+            "yyyy.MM.dd HH:mm:ss", "yyyy.MM.dd HH:mm", "yyyy.MM.dd"
+        };
+        for (String pattern : patterns) {
+            try {
+                return new java.text.SimpleDateFormat(pattern).parse(str);
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     private static Object getFieldValue(Object obj, String fieldName) {

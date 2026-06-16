@@ -6,6 +6,7 @@
         <result column="detail_no" property="detailNo"/>
         <result column="purchase_no" property="purchaseNo"/>
         <result column="goods_id" property="goodsId"/>
+        <result column="goods_code" property="goodsCode"/>
         <result column="goods_num" property="goodsNum"/>
         <result column="goods_price" property="goodsPrice"/>
         <result column="total_price" property="totalPrice"/>
@@ -13,7 +14,9 @@
     </resultMap>
 
     <select id="selectAll" resultMap="BaseResultMap">
-        select * from purchase_detail
+        select pd.*, g.goods_code
+        from purchase_detail pd
+        left join goods g on pd.goods_id = g.id
     </select>
 
     <select id="selectById" resultMap="BaseResultMap">

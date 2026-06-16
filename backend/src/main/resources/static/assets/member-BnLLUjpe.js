@@ -1,0 +1,2 @@
+import{t as e}from"./request-DPUlPpD4.js";var t=()=>e.get(`/member/list`),n=t=>e.post(`/member/add`,t),r=t=>e.post(`/member/update`,t),i=t=>e.get(`/member/delete`,{params:{id:t}}),a=t=>{let n=new FormData;return n.append(`file`,t),e.post(`/member/import`,n,{headers:{"Content-Type":`multipart/form-data`}})},o=()=>e.get(`/member/export`,{responseType:`blob`});export{a,t as i,i as n,r as o,o as r,n as t};
+//# sourceMappingURL=member-BnLLUjpe.js.map

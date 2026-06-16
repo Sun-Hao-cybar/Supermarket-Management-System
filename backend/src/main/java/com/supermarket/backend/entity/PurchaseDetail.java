@@ -9,6 +9,7 @@ public class PurchaseDetail {
     private String detailNo;
     private String purchaseNo;
     private Long goodsId;
+    private String goodsCode;
     private Integer goodsNum;
     private BigDecimal goodsPrice;
     private BigDecimal totalPrice;

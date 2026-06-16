@@ -83,25 +83,44 @@ public class SysUserController {
     @PostMapping("/import")
     public Result<String> importExcel(@RequestParam("file") MultipartFile file) {
         try {
-            String[] headers = {"username", "password", "realName", "phone", "salary", "role", "remark"};
+            // 注意：列顺序必须与导出保持一致（导出不含密码，管理员通过自行注册设置密码）
+            String[] headers = {"username", "realName", "phone", "salary", "role", "remark"};
             List<Map<String, Object>> dataList = ExcelUtil.importExcel(file.getInputStream(), headers);
-            
-            for (Map<String, Object> data : dataList) {
-                SysUser user = new SysUser();
-                user.setUsername(String.valueOf(data.get("username")));
-                user.setPassword(String.valueOf(data.get("password")));
-                user.setRealName(String.valueOf(data.get("realName")));
-                user.setPhone(String.valueOf(data.get("phone")));
-                if (data.get("salary") != null) {
-                    user.setSalary(new BigDecimal(String.valueOf(data.get("salary"))));
+
+            int successCount = 0;
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> data = dataList.get(i);
+                int rowNum = i + 2;
+                try {
+                    SysUser user = new SysUser();
+                    user.setUsername(ExcelUtil.getString(data, "username"));
+                    user.setRealName(ExcelUtil.getString(data, "realName"));
+                    user.setPhone(ExcelUtil.getString(data, "phone"));
+                    if (data.get("salary") != null) {
+                        user.setSalary(new BigDecimal(String.valueOf(data.get("salary"))));
+                    }
+                    if (data.get("role") != null) {
+                        user.setRole(((Number) data.get("role")).intValue());
+                    }
+                    user.setRemark(ExcelUtil.getString(data, "remark"));
+                    user.setPassword(""); // 员工导入不设密码，由员工自行注册时设置
+
+                    // 管理员信息不允许通过Excel导入
+                    if (user.getRole() != null && user.getRole() == 1) {
+                        return Result.error("第" + rowNum + "行：管理员信息不允许通过Excel导入，请删除该行后重试");
+                    }
+
+                    Result<String> res = sysUserService.add(user);
+                    if (res.getCode() == 200) {
+                        successCount++;
+                    } else {
+                        return Result.error("第" + rowNum + "行导入失败：" + res.getMsg());
+                    }
+                } catch (Exception e) {
+                    return Result.error("第" + rowNum + "行导入失败：" + e.getMessage());
                 }
-                if (data.get("role") != null) {
-                    user.setRole(((Number) data.get("role")).intValue());
-                }
-                user.setRemark(String.valueOf(data.get("remark")));
-                sysUserService.add(user);
             }
-            return Result.success("导入成功，共导入 " + dataList.size() + " 条数据");
+            return Result.success("导入成功，共导入 " + successCount + " 条数据");
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }
@@ -135,7 +154,7 @@ public class SysUserController {
         try {
             List<SysUser> dataList = sysUserService.listAll();
             
-            String[] headers = {"账号", "姓名", "电话", "工资", "角色", "备注"};
+            String[] headers = {"员工编号", "姓名", "电话", "工资", "角色", "备注"};
             String[] fieldNames = {"username", "realName", "phone", "salary", "role", "remark"};
             
             byte[] excelData = ExcelUtil.exportExcel(headers, fieldNames, dataList);

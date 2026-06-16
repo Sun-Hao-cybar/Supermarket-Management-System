@@ -294,20 +294,30 @@ public class SysUserService {
 
     /**
      * 同步会员等级：管理员通过员工管理设置/修改会员等级时
+     * 只有员工已完成自行注册（有密码）后才同步到会员表，未注册员工不创建会员记录
      */
     private void syncMemberLevel(SysUser user) {
-        String memberNo = "M" + user.getUsername();
+        // 从数据库取最新记录，判断员工是否已注册
+        SysUser dbUser = sysUserMapper.selectById(user.getId());
+        if (dbUser == null) return;
+        boolean isRegistered = dbUser.getPassword() != null && !dbUser.getPassword().isEmpty();
+
+        String memberNo = "M" + dbUser.getUsername();
         com.supermarket.backend.entity.Member member = memberMapper.selectByMemberNo(memberNo);
         String newLevel = user.getMemberLevel();
 
         if (newLevel != null && !newLevel.isEmpty() && !"无".equals(newLevel)) {
-            // 创建或更新会员记录（name/phone 可能为空，用 username 兜底）
+            if (!isRegistered) {
+                // 员工尚未注册，不创建会员记录，但保留 memberLevel 到 sys_user 待注册时同步
+                return;
+            }
+            // 创建或更新会员记录
             if (member == null) {
                 member = new com.supermarket.backend.entity.Member();
                 member.setMemberNo(memberNo);
-                String name = user.getRealName();
-                member.setName(name != null && !name.isEmpty() ? name : user.getUsername());
-                String phone = user.getPhone();
+                String name = dbUser.getRealName();
+                member.setName(name != null && !name.isEmpty() ? name : dbUser.getUsername());
+                String phone = dbUser.getPhone();
                 member.setPhone(phone != null ? phone : "");
                 member.setRegisterTime(new Date());
                 member.setLevel(newLevel);

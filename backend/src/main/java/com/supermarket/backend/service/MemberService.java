@@ -72,7 +72,9 @@ public class MemberService {
         if (!member.getLevel().matches("^(SVIP|VIP|普通会员)$")) {
             return Result.error("会员等级只允许 SVIP、VIP 或 普通会员");
         }
-        member.setRegisterTime(new Date());
+        if (member.getRegisterTime() == null) {
+            member.setRegisterTime(new Date());
+        }
         memberMapper.insert(member);
         return Result.success("添加成功");
     }
@@ -118,8 +120,8 @@ public class MemberService {
     public byte[] export() {
         try {
             List<Member> list = memberMapper.selectAll();
-            String[] headers = {"ID", "会员编号", "姓名", "电话", "会员等级", "注册时间", "备注"};
-            String[] fields = {"id", "memberNo", "name", "phone", "level", "registerTime", "remark"};
+            String[] headers = {"会员编号", "姓名", "电话", "会员等级", "注册时间", "备注"};
+            String[] fields = {"memberNo", "name", "phone", "level", "registerTime", "remark"};
             return ExcelUtil.exportExcel(headers, fields, list);
         } catch (Exception e) {
             e.printStackTrace();

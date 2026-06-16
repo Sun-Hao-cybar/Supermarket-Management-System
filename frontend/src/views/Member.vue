@@ -11,7 +11,9 @@
         @input="currentPage = 1"
       />
       <el-button type="primary" @click="openAdd">新增</el-button>
+      <el-button @click="handleImport">导入Excel</el-button>
       <el-button @click="handleExport">导出Excel</el-button>
+      <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelect" />
     </div>
     <div class="table-wrap">
     <el-table :data="pagedList" border size="small">
@@ -86,7 +88,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getMemberList, addMember, updateMember, deleteMember, exportMember } from '@/api/member'
+import { getMemberList, addMember, updateMember, deleteMember, importMember, exportMember } from '@/api/member'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const list = ref([])
@@ -287,6 +289,22 @@ const handleDelete = async (id) => {
     ElMessage.info(res.msg)
     loadData()
   } catch { /* 取消 */ }
+}
+
+const fileInput = ref(null)
+
+const handleImport = () => {
+  fileInput.value.click()
+}
+
+const onFileSelect = async (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    const res = await importMember(file)
+    ElMessage.info(res.msg)
+    loadData()
+    event.target.value = ''
+  }
 }
 
 const handleExport = async () => {

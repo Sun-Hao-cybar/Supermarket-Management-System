@@ -11,6 +11,7 @@ public class PurchaseMain {
     private Long id;
     private String purchaseNo;
     private Long userId;
+    private String userName;
     private Integer totalNum;
     private BigDecimal totalPrice;
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Shanghai")

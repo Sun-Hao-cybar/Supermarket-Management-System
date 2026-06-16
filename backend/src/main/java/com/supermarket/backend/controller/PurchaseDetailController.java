@@ -1,7 +1,9 @@
 package com.supermarket.backend.controller;
 
 import com.supermarket.backend.common.Result;
+import com.supermarket.backend.entity.Goods;
 import com.supermarket.backend.entity.PurchaseDetail;
+import com.supermarket.backend.mapper.GoodsMapper;
 import com.supermarket.backend.service.PurchaseDetailService;
 import com.supermarket.backend.util.ExcelUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,8 @@ import java.util.Map;
 public class PurchaseDetailController {
     @Autowired
     private PurchaseDetailService purchaseDetailService;
+    @Autowired
+    private GoodsMapper goodsMapper;
 
     @GetMapping("/list")
     public Result<List<PurchaseDetail>> list(){
@@ -51,29 +55,52 @@ public class PurchaseDetailController {
     @PostMapping("/import")
     public Result<String> importExcel(@RequestParam("file") MultipartFile file) {
         try {
-            String[] headers = {"detailNo", "purchaseNo", "goodsId", "goodsNum", "goodsPrice", "totalPrice", "remark"};
+            String[] headers = {"detailNo", "purchaseNo", "goodsCode", "goodsNum", "goodsPrice", "totalPrice", "remark"};
             List<Map<String, Object>> dataList = ExcelUtil.importExcel(file.getInputStream(), headers);
-            
-            for (Map<String, Object> data : dataList) {
-                PurchaseDetail detail = new PurchaseDetail();
-                detail.setDetailNo(String.valueOf(data.get("detailNo")));
-                detail.setPurchaseNo(String.valueOf(data.get("purchaseNo")));
-                if (data.get("goodsId") != null) {
-                    detail.setGoodsId(((Number) data.get("goodsId")).longValue());
+
+            int successCount = 0;
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> data = dataList.get(i);
+                int rowNum = i + 2;
+                try {
+                    PurchaseDetail detail = new PurchaseDetail();
+                    detail.setDetailNo(ExcelUtil.getString(data, "detailNo"));
+                    detail.setPurchaseNo(ExcelUtil.getString(data, "purchaseNo"));
+                    // 支持商品编号（goodsCode）或数字ID
+                    String goodsCodeVal = ExcelUtil.getString(data, "goodsCode");
+                    if (!goodsCodeVal.isEmpty()) {
+                        Goods goods = goodsMapper.selectByGoodsCode(goodsCodeVal);
+                        if (goods != null) {
+                            detail.setGoodsId(goods.getId());
+                        } else {
+                            try {
+                                detail.setGoodsId(Long.parseLong(goodsCodeVal));
+                            } catch (NumberFormatException e) {
+                                return Result.error("第" + rowNum + "行：商品编号不存在");
+                            }
+                        }
+                    }
+                    if (data.get("goodsNum") != null) {
+                        detail.setGoodsNum(((Number) data.get("goodsNum")).intValue());
+                    }
+                    if (data.get("goodsPrice") != null) {
+                        detail.setGoodsPrice(new BigDecimal(String.valueOf(data.get("goodsPrice"))));
+                    }
+                    if (data.get("totalPrice") != null) {
+                        detail.setTotalPrice(new BigDecimal(String.valueOf(data.get("totalPrice"))));
+                    }
+                    detail.setRemark(ExcelUtil.getString(data, "remark"));
+                    Result<String> res = purchaseDetailService.add(detail);
+                    if (res.getCode() == 200) {
+                        successCount++;
+                    } else {
+                        return Result.error("第" + rowNum + "行导入失败：" + res.getMsg());
+                    }
+                } catch (Exception e) {
+                    return Result.error("第" + rowNum + "行导入失败：" + e.getMessage());
                 }
-                if (data.get("goodsNum") != null) {
-                    detail.setGoodsNum(((Number) data.get("goodsNum")).intValue());
-                }
-                if (data.get("goodsPrice") != null) {
-                    detail.setGoodsPrice(new BigDecimal(String.valueOf(data.get("goodsPrice"))));
-                }
-                if (data.get("totalPrice") != null) {
-                    detail.setTotalPrice(new BigDecimal(String.valueOf(data.get("totalPrice"))));
-                }
-                detail.setRemark(String.valueOf(data.get("remark")));
-                purchaseDetailService.add(detail);
             }
-            return Result.success("导入成功，共导入 " + dataList.size() + " 条数据");
+            return Result.success("导入成功，共导入 " + successCount + " 条数据");
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }
@@ -86,7 +113,7 @@ public class PurchaseDetailController {
             List<PurchaseDetail> dataList = result.getData();
             
             String[] headers = {"明细号", "采购清单号", "商品编号", "采购数量", "商品单价", "商品总价", "备注"};
-            String[] fieldNames = {"detailNo", "purchaseNo", "goodsId", "goodsNum", "goodsPrice", "totalPrice", "remark"};
+            String[] fieldNames = {"detailNo", "purchaseNo", "goodsCode", "goodsNum", "goodsPrice", "totalPrice", "remark"};
             
             byte[] excelData = ExcelUtil.exportExcel(headers, fieldNames, dataList);
             

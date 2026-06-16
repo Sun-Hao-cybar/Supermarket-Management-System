@@ -14,6 +14,14 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <select id="selectByGoodsCode" resultMap="BaseResultMap">
+        select g.id, g.goods_code, g.goods_name, g.price, g.supplier_id, s.supplier_name, g.intro, g.remark, g.create_time
+        from goods g
+        left join supplier s on g.supplier_id = s.id
+        where g.goods_code = #{goodsCode}
+        limit 1
+    </select>
+
     <select id="selectAll" resultMap="BaseResultMap">
         select g.id, g.goods_code, g.goods_name, g.price, g.supplier_id, s.supplier_name, g.intro, g.remark, g.create_time
         from goods g

@@ -49,21 +49,33 @@ public class SupplierController {
         try {
             String[] headers = {"supplierCode", "supplierName", "shortName", "address", "phone", "email", "contactPerson", "contactPhone", "remark"};
             List<Map<String, Object>> dataList = ExcelUtil.importExcel(file.getInputStream(), headers);
-            
-            for (Map<String, Object> data : dataList) {
-                Supplier supplier = new Supplier();
-                supplier.setSupplierCode(String.valueOf(data.get("supplierCode")));
-                supplier.setSupplierName(String.valueOf(data.get("supplierName")));
-                supplier.setShortName(String.valueOf(data.get("shortName")));
-                supplier.setAddress(String.valueOf(data.get("address")));
-                supplier.setPhone(String.valueOf(data.get("phone")));
-                supplier.setEmail(String.valueOf(data.get("email")));
-                supplier.setContactPerson(String.valueOf(data.get("contactPerson")));
-                supplier.setContactPhone(String.valueOf(data.get("contactPhone")));
-                supplier.setRemark(String.valueOf(data.get("remark")));
-                supplierService.add(supplier);
+
+            int successCount = 0;
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> data = dataList.get(i);
+                int rowNum = i + 2;
+                try {
+                    Supplier supplier = new Supplier();
+                    supplier.setSupplierCode(ExcelUtil.getString(data, "supplierCode"));
+                    supplier.setSupplierName(ExcelUtil.getString(data, "supplierName"));
+                    supplier.setShortName(ExcelUtil.getString(data, "shortName"));
+                    supplier.setAddress(ExcelUtil.getString(data, "address"));
+                    supplier.setPhone(ExcelUtil.getString(data, "phone"));
+                    supplier.setEmail(ExcelUtil.getString(data, "email"));
+                    supplier.setContactPerson(ExcelUtil.getString(data, "contactPerson"));
+                    supplier.setContactPhone(ExcelUtil.getString(data, "contactPhone"));
+                    supplier.setRemark(ExcelUtil.getString(data, "remark"));
+                    Result<String> res = supplierService.add(supplier);
+                    if (res.getCode() == 200) {
+                        successCount++;
+                    } else {
+                        return Result.error("第" + rowNum + "行导入失败：" + res.getMsg());
+                    }
+                } catch (Exception e) {
+                    return Result.error("第" + rowNum + "行导入失败：" + e.getMessage());
+                }
             }
-            return Result.success("导入成功，共导入 " + dataList.size() + " 条数据");
+            return Result.success("导入成功，共导入 " + successCount + " 条数据");
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }

@@ -5,6 +5,7 @@
         <id column="id" property="id"/>
         <result column="purchase_no" property="purchaseNo"/>
         <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
         <result column="total_num" property="totalNum"/>
         <result column="total_price" property="totalPrice"/>
         <result column="purchase_time" property="purchaseTime"/>
@@ -13,7 +14,9 @@
     </resultMap>
 
     <select id="selectAll" resultMap="BaseResultMap">
-        select * from purchase_main
+        select pm.*, u.username as user_name
+        from purchase_main pm
+        left join sys_user u on pm.user_id = u.id
     </select>
 
     <select id="selectById" resultMap="BaseResultMap">

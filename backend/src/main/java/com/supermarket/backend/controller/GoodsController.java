@@ -50,22 +50,34 @@ public class GoodsController {
         try {
             String[] headers = {"goodsCode", "goodsName", "price", "supplierId", "intro", "remark"};
             List<Map<String, Object>> dataList = ExcelUtil.importExcel(file.getInputStream(), headers);
-            
-            for (Map<String, Object> data : dataList) {
-                Goods goods = new Goods();
-                goods.setGoodsCode(String.valueOf(data.get("goodsCode")));
-                goods.setGoodsName(String.valueOf(data.get("goodsName")));
-                if (data.get("price") != null) {
-                    goods.setPrice(new BigDecimal(String.valueOf(data.get("price"))));
+
+            int successCount = 0;
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> data = dataList.get(i);
+                int rowNum = i + 2; // 第1行是表头，数据从第2行开始
+                try {
+                    Goods goods = new Goods();
+                    goods.setGoodsCode(ExcelUtil.getString(data, "goodsCode"));
+                    goods.setGoodsName(ExcelUtil.getString(data, "goodsName"));
+                    if (data.get("price") != null) {
+                        goods.setPrice(new BigDecimal(String.valueOf(data.get("price"))));
+                    }
+                    if (data.get("supplierId") != null) {
+                        goods.setSupplierId(((Number) data.get("supplierId")).longValue());
+                    }
+                    goods.setIntro(ExcelUtil.getString(data, "intro"));
+                    goods.setRemark(ExcelUtil.getString(data, "remark"));
+                    Result<String> res = goodsService.add(goods);
+                    if (res.getCode() == 200) {
+                        successCount++;
+                    } else {
+                        return Result.error("第" + rowNum + "行导入失败：" + res.getMsg());
+                    }
+                } catch (Exception e) {
+                    return Result.error("第" + rowNum + "行导入失败：" + e.getMessage());
                 }
-                if (data.get("supplierId") != null) {
-                    goods.setSupplierId(((Number) data.get("supplierId")).longValue());
-                }
-                goods.setIntro(String.valueOf(data.get("intro")));
-                goods.setRemark(String.valueOf(data.get("remark")));
-                goodsService.add(goods);
             }
-            return Result.success("导入成功，共导入 " + dataList.size() + " 条数据");
+            return Result.success("导入成功，共导入 " + successCount + " 条数据");
         } catch (Exception e) {
             return Result.error("导入失败：" + e.getMessage());
         }

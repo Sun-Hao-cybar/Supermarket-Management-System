@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "docx-editor-cn": {
+      "source": "gostyan/docx-skill-4-cn-paper",
+      "sourceType": "github",
+      "skillPath": "docx-editor-cn/SKILL.md",
+      "computedHash": "93a38d48ff1cb5740461e0dc2473bbfbe854e10f5f191d86d3ad92ebec9293a0"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
+    }
+  }
+}

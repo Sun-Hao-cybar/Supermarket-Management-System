@@ -32,6 +32,13 @@ public class PurchaseDetailService {
         // 检查明细号是否重复
         if (purchaseDetailMapper.selectByDetailNo(detail.getDetailNo()) != null)
             return Result.error("明细号已存在，请使用其他编号");
+        // 检查采购清单号是否存在
+        if (detail.getPurchaseNo() == null || detail.getPurchaseNo().isEmpty()) {
+            return Result.error("采购清单号不能为空");
+        }
+        if (purchaseMainMapper.selectByPurchaseNo(detail.getPurchaseNo()) == null) {
+            return Result.error("采购清单号不存在，请先在采购主表中创建该清单");
+        }
         purchaseDetailMapper.insert(detail);
         return Result.success("采购明细新增成功");
     }
@@ -45,6 +52,12 @@ public class PurchaseDetailService {
             PurchaseDetail exist = purchaseDetailMapper.selectByDetailNo(detail.getDetailNo());
             if (exist != null && !exist.getId().equals(detail.getId()))
                 return Result.error("明细号已存在，请使用其他编号");
+        }
+        // 检查采购清单号是否存在
+        if (detail.getPurchaseNo() != null && !detail.getPurchaseNo().isEmpty()) {
+            if (purchaseMainMapper.selectByPurchaseNo(detail.getPurchaseNo()) == null) {
+                return Result.error("采购清单号不存在，请先在采购主表中创建该清单");
+            }
         }
         purchaseDetailMapper.update(detail);
         return Result.success("采购明细修改成功");

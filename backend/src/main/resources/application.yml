@@ -20,20 +20,19 @@ spring:
       idle-timeout: 300000
       connection-timeout: 20000
 
-  # Redis 配置（有Redis时取消注释并设置环境变量REDIS_HOST）
-  # data:
-  #   redis:
-  #     host: ${REDIS_HOST:localhost}
-  #     port: ${REDIS_PORT:6379}
-  #     timeout: 3000ms
-  #     lettuce:
-  #       pool:
-  #         max-active: 16
-  #         max-idle: 8
-  #         min-idle: 4
+  # Redis 配置（需安装 Redis 服务后使用）
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
   autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+    exclude: []
 
   # 缓存配置（Caffeine本地缓存 + Redis分布式缓存）
   cache:
@@ -65,6 +64,6 @@ logging:
 # DeepSeek AI Agent 配置
 agent:
   deepseek:
-    api-key: ${DEEPSEEK_API_KEY:sk-your-deepseek-api-key}
+    api-key: ${DEEPSEEK_API_KEY:自己的api-key}
     api-url: https://api.deepseek.com/v1/chat/completions
     model: deepseek-chat

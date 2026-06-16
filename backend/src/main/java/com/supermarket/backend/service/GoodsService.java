@@ -24,6 +24,12 @@ public class GoodsService {
     @Transactional
     @CacheEvict(value = {"goodsList", "goods"}, allEntries = true)
     public Result<String> add(Goods goods) {
+        if (goods.getGoodsCode() != null) {
+            Goods existing = goodsMapper.selectByGoodsCode(goods.getGoodsCode());
+            if (existing != null) {
+                return Result.error("商品编号已存在");
+            }
+        }
         goodsMapper.insert(goods);
         return Result.success("商品添加成功");
     }
@@ -31,6 +37,12 @@ public class GoodsService {
     @Transactional
     @CacheEvict(value = {"goodsList", "goods"}, allEntries = true)
     public Result<String> update(Goods goods) {
+        if (goods.getGoodsCode() != null) {
+            Goods existing = goodsMapper.selectByGoodsCode(goods.getGoodsCode());
+            if (existing != null && !existing.getId().equals(goods.getId())) {
+                return Result.error("商品编号已存在");
+            }
+        }
         goodsMapper.update(goods);
         return Result.success("商品修改成功");
     }
